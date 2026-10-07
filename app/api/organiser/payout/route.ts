@@ -1,3 +1,7 @@
+import { recordAudit } from "@/lib/audit";
+import { PayoutPinError, requirePayoutPin } from "@/lib/payout-pin";
+import { payoutPinStore } from "@/lib/payout-pin-store";
+import { PayoutUpdateError, updateSecurePayoutAccount } from "@/lib/payout-update";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
@@ -5,6 +9,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import {
   createSubaccount,
+  getSubaccount,
   listBanks,
 } from "@/lib/paystack";
 import { verifyPayoutVerificationToken } from "@/lib/payout-verification";
@@ -21,7 +26,7 @@ function getErrorMessage(error: unknown) {
    GET — PAYOUT STATUS
 ============================================================ */
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -61,6 +66,8 @@ export async function GET() {
         name: true,
         email: true,
         paystackSubaccountCode: true,
+        payoutPinHash: true,
+        paystackUsdSubaccountCode: true,
       },
     });
 
@@ -75,6 +82,15 @@ export async function GET() {
       );
     }
 
+    const currency = request.nextUrl.searchParams.get("currency") ?? "NGN";
+    if (currency !== "NGN" && currency !== "USD") {
+      return NextResponse.json({ error: "Unsupported payout currency" }, { status: 400 });
+    }
+    if (currency === "USD") {
+      const connected = process.env.PAYSTACK_USD_ENABLED === "true" && Boolean(user.paystackUsdSubaccountCode);
+      return NextResponse.json({ connected, payoutConfigured: connected, currency, pinConfigured: Boolean(user.payoutPinHash), banks: [] });
+    }
+
     const connected =
       typeof user.paystackSubaccountCode === "string" &&
       user.paystackSubaccountCode.trim().length > 0;
@@ -83,15 +99,26 @@ export async function GET() {
      * Only load banks when the organiser still needs
      * to configure payouts.
      */
-    const banks = connected
+    const banks = !user.payoutPinHash || (connected && request.nextUrl.searchParams.get("banks") !== "1")
       ? []
       : await listBanks({
           country: "nigeria",
           perPage: 100,
         });
 
+    const account = connected && request.nextUrl.searchParams.get("details") === "1"
+      ? await getSubaccount(user.paystackSubaccountCode!) : null;
+    const details = account ? {
+      accountName: account.account_name ?? "",
+      bankName: account.settlement_bank ?? "",
+      accountLast4: account.account_number?.slice(-4) ?? "",
+      businessName: account.business_name ?? user.name,
+    } : null;
+
     return NextResponse.json({
       connected,
+      pinConfigured: Boolean(user.payoutPinHash),
+      details,
 
       /*
        * Return the same value under both names so older
@@ -163,6 +190,7 @@ export async function POST(request: NextRequest) {
         name: true,
         email: true,
         paystackSubaccountCode: true,
+        payoutPinHash: true,
       },
     });
 
@@ -175,6 +203,10 @@ export async function POST(request: NextRequest) {
           status: 404,
         }
       );
+    }
+
+    if (!user.payoutPinHash) {
+      return NextResponse.json({ error: "Set your payout PIN before connecting bank details." }, { status: 409 });
     }
 
     /*
@@ -302,6 +334,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await requirePayoutPin(user.id, body.pin, payoutPinStore);
+
     /*
      * Create the Paystack subaccount.
      *
@@ -353,6 +387,7 @@ export async function POST(request: NextRequest) {
         },
         select: {
           paystackSubaccountCode: true,
+        payoutPinHash: true,
         },
       });
 
@@ -370,6 +405,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await recordAudit({ action: "payout.connected", actorId: user.id, actorName: user.name, entityType: "user", entityId: user.id, summary: "Connected NGN payout account" });
     return NextResponse.json({
       success: true,
       connected: true,
@@ -392,8 +428,40 @@ export async function POST(request: NextRequest) {
         error: getErrorMessage(error),
       },
       {
-        status: 500,
+        status: error instanceof PayoutPinError ? error.status : 500,
       }
     );
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.user.role !== "ORGANISER") {
+      return NextResponse.json({ error: "Only organisers can change payout accounts" }, { status: 403 });
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, name: true, paystackSubaccountCode: true },
+    });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    let body;
+    try { body = await request.json(); }
+    catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+    const details = await updateSecurePayoutAccount(user, body, payoutPinStore, undefined, async () => {
+      await recordAudit({ action: "payout.update_requested", actorId: user.id, actorName: user.name, entityType: "user", entityId: user.id, summary: "Requested NGN payout account change" });
+    });
+    // Keep the existing subaccount code so ticket-payment splits remain linked.
+    await recordAudit({ action: "payout.updated", actorId: user.id, actorName: user.name, entityType: "user", entityId: user.id, summary: "Updated NGN payout account" });
+    return NextResponse.json({ success: true, connected: true, details });
+  } catch (error) {
+    console.error("Payout update failed", { error: error instanceof Error ? error.name : "UnknownError" });
+    return NextResponse.json({ error: getErrorMessage(error) }, {
+      status: error instanceof PayoutUpdateError || error instanceof PayoutPinError ? error.status : 502,
+    });
   }
 }

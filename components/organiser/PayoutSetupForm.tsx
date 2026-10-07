@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import {
   CheckCircle2,
@@ -42,13 +43,24 @@ type FormState =
   | "verifying"
   | "saving";
 
-export default function PayoutSetupForm() {
+export default function PayoutSetupForm({
+  mode = "connect", initialBusinessName = "", onCancel, onSaved,
+}: {
+  mode?: "connect" | "edit";
+  initialBusinessName?: string;
+  onCancel?: () => void;
+  onSaved?: () => void;
+} = {}) {
+  const router = useRouter();
+  const editing = mode === "edit";
+  const [pin, setPin] = useState("");
+  const [confirmed, setConfirmed] = useState(false);
   const [banks, setBanks] = useState<Bank[]>([]);
 
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [businessName, setBusinessName] = useState(initialBusinessName);
 
   /*
    * This token is returned by the server after Paystack
@@ -73,7 +85,7 @@ export default function PayoutSetupForm() {
         setError("");
 
         const response = await fetch(
-          "/api/organiser/payout",
+          editing ? "/api/organiser/payout?banks=1" : "/api/organiser/payout",
           {
             method: "GET",
             cache: "no-store",
@@ -91,7 +103,7 @@ export default function PayoutSetupForm() {
 
         setBanks(data.banks ?? []);
 
-        if (data.connected) {
+        if (data.connected && !editing) {
           setSuccess(true);
         }
 
@@ -108,9 +120,10 @@ export default function PayoutSetupForm() {
     }
 
     loadBanks();
-  }, []);
+  }, [editing]);
 
   function clearVerification() {
+    setConfirmed(false);
     setVerified(false);
     setAccountName("");
     setVerificationToken("");
@@ -243,6 +256,11 @@ export default function PayoutSetupForm() {
       return;
     }
 
+    if (editing && !confirmed) {
+      setError("Confirm the verified account details before saving.");
+      return;
+    }
+
     try {
       setFormState("saving");
       setError("");
@@ -250,11 +268,13 @@ export default function PayoutSetupForm() {
       const response = await fetch(
         "/api/organiser/payout",
         {
-          method: "POST",
+          method: editing ? "PATCH" : "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
+            pin,
+            confirmed: editing ? confirmed : undefined,
             bankCode,
             accountNumber,
             businessName:
@@ -270,17 +290,19 @@ export default function PayoutSetupForm() {
       if (!response.ok) {
         throw new Error(
           data.error ||
-            "Unable to connect your payout account."
+            (editing ? "Unable to update your payout account." : "Unable to connect your payout account.")
         );
       }
 
-      setSuccess(true);
+      setPin("");
       setFormState("idle");
+      if (onSaved) onSaved();
+      else { setSuccess(true); router.refresh(); }
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : "Unable to connect your payout account."
+          : (editing ? "Unable to update your payout account." : "Unable to connect your payout account.")
       );
 
       setFormState("idle");
@@ -353,17 +375,17 @@ export default function PayoutSetupForm() {
         </div>
 
         <p className="mt-6 text-[9px] font-bold uppercase tracking-[0.18em] text-black/30">
-          Payout setup
+          {editing ? "Update NGN payouts" : "Payout setup"}
         </p>
 
         <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.04em]">
-          Connect your bank account.
+          {editing ? "Change your payout account." : "Connect your bank account."}
         </h2>
 
         <p className="mt-2 max-w-lg text-sm leading-6 text-black/45">
-          Add the Nigerian bank account where you want your
-          event earnings to be settled. We&apos;ll verify the
-          account before connecting it.
+          {editing
+            ? "Enter your new bank details, verify the account holder’s name, then confirm the change. Your current account stays connected until you save."
+            : "Add the Nigerian bank account where you want your event earnings to be settled. We’ll verify the account before connecting it."}
         </p>
       </div>
 
@@ -522,7 +544,7 @@ export default function PayoutSetupForm() {
             type="text"
             value={businessName}
             onChange={(event) =>
-              setBusinessName(event.target.value)
+              { setBusinessName(event.target.value); setConfirmed(false); }
             }
             placeholder="e.g. Acme Events"
             disabled={isSaving}
@@ -535,6 +557,22 @@ export default function PayoutSetupForm() {
             Paystack. You can leave it blank if you&apos;re
             using your name.
           </p>
+        </div>
+
+        {editing && verified && accountName && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-[15px] border border-violet-200 bg-violet-50 p-4">
+            <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} disabled={isSaving} className="mt-0.5 h-4 w-4 shrink-0 accent-violet-600" />
+            <span className="text-xs leading-6 text-violet-950">
+              I confirm that <strong>{accountName}</strong> at <strong>{selectedBank?.name}</strong>,
+              account ending <strong>{accountNumber.slice(-4)}</strong>, is the account I want to use for my event payouts.
+            </span>
+          </label>
+        )}
+
+        <div>
+          <label htmlFor="payoutPin" className="mb-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-black/40">Your payout PIN</label>
+          <input id="payoutPin" type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} minLength={6} pattern="[0-9]{6}" required disabled={isSaving || isVerifying} placeholder="6-digit Tickety PIN" className="h-12 w-full rounded-[13px] border border-black/10 px-4 text-sm tracking-[0.15em] outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" />
+          <p className="mt-2 text-[10px] leading-5 text-black/45">Enter the payout PIN you set on Tickety to authorise this {editing ? "change" : "connection"}. <a href="mailto:experience@tickety.africa?subject=Forgotten%20payout%20PIN" className="font-semibold text-violet-700 underline underline-offset-2">Forgot your PIN?</a></p>
         </div>
 
         {/* Error */}
@@ -557,7 +595,9 @@ export default function PayoutSetupForm() {
               isLoadingBanks ||
               !verified ||
               !accountName ||
-              !verificationToken
+              !verificationToken ||
+              (editing && !confirmed) ||
+              pin.length !== 6
             }
             className="flex h-12 w-full items-center justify-center gap-2 rounded-[13px] bg-[#111014] px-5 text-sm font-semibold text-white transition-all hover:bg-[#7C3AED] disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -567,15 +607,19 @@ export default function PayoutSetupForm() {
                   size={16}
                   className="animate-spin"
                 />
-                Connecting account...
+                {editing ? "Updating account..." : "Connecting account..."}
               </>
             ) : (
               <>
-                Connect payout account
+                {editing ? "Confirm and update payout account" : "Connect payout account"}
                 <CheckCircle2 size={15} />
               </>
             )}
           </button>
+
+          {editing && onCancel && (
+            <button type="button" onClick={onCancel} disabled={isSaving || isVerifying} className="mt-3 flex min-h-11 w-full items-center justify-center rounded-[13px] border border-black/10 text-xs font-semibold text-black/60 hover:bg-black/5 disabled:opacity-40">Cancel changes</button>
+          )}
 
           <div className="mt-4 flex items-start justify-center gap-2 text-center">
             <ShieldCheck

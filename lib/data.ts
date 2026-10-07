@@ -1,3 +1,5 @@
+import { recordAudit } from "./audit";
+import type { Currency } from "./currency";
 import { eventInstant } from "@/lib/email/schedule";
 import { prisma } from "@/lib/db";
 import { enqueueEmail, rescheduleEventEmails } from "@/lib/email/queue";
@@ -77,6 +79,7 @@ function mapEvent(event: EventWithRelations): EventItem {
     id: event.id,
     slug: event.slug,
     title: event.title,
+    currency: event.currency,
     description: event.description,
     state: event.state,
     venue: event.venue,
@@ -99,7 +102,7 @@ function mapEvent(event: EventWithRelations): EventItem {
     ticketTypes: event.ticketTypes.map((t) => ({
       id: t.id,
       name: t.name,
-      price: t.price,
+      price: Number(t.price),
       quantityTotal: t.quantityTotal,
       quantitySold: t.quantitySold,
       quantityReserved: t.quantityReserved,
@@ -121,16 +124,18 @@ function mapAttendee(
   a: Prisma.AttendeeGetPayload<{
     include: { ticketType: true };
   }>,
-  customQuestions: { id: string; label: string }[] = []
+  customQuestions: { id: string; label: string }[] = [],
+  currency: Currency = "NGN"
 ): Attendee {
   return {
     id: a.id,
+    currency,
     name: a.name,
     email: a.email,
     phone: a.phone,
     ticketType: a.ticketType.name,
     ticketId: a.ticketId,
-    amountPaid: a.amountPaid,
+    amountPaid: Number(a.amountPaid),
     purchaseDate: a.purchaseDate.toISOString().slice(0, 10),
     paymentStatus: a.paymentStatus,
     checkInStatus: a.checkInStatus,
@@ -265,7 +270,7 @@ export async function getAttendeesForEventSlug(
   });
 
   return attendees.map((attendee) =>
-    mapAttendee(attendee, event.customQuestions)
+    mapAttendee(attendee, event.customQuestions, event.currency)
   );
 }
 
@@ -298,7 +303,7 @@ export async function getAttendeesForEventId(
   });
 
   return attendees.map((attendee) =>
-    mapAttendee(attendee, event.customQuestions)
+    mapAttendee(attendee, event.customQuestions, event.currency)
   );
 }
 
@@ -327,9 +332,10 @@ export async function getTransactions(): Promise<Transaction[]> {
   return transactions.map((transaction) => ({
     id: transaction.id,
     eventTitle: transaction.attendee.event.title,
+    currency: transaction.attendee.event.currency,
     organiserName: transaction.attendee.event.organiser.name,
-    amount: transaction.amount,
-    platformFee: transaction.platformFee,
+    amount: Number(transaction.amount),
+    platformFee: Number(transaction.platformFee),
     date: transaction.date.toISOString().slice(0, 10),
     status: transaction.status,
   }));
@@ -358,6 +364,7 @@ export async function getAdminEvents(): Promise<
     return {
   id: event.id,
   title: event.title,
+    currency: event.currency,
   organiserName: event.organiser.name,
   status: event.status,
   date: event.date.toISOString().slice(0, 10),
@@ -365,7 +372,7 @@ export async function getAdminEvents(): Promise<
   endTime: event.endTime,
   ticketsSold: event.attendees.length,
   gross: paidAttendees.reduce(
-    (sum, attendee) => sum + attendee.amountPaid,
+    (sum, attendee) => sum + Number(attendee.amountPaid),
     0
   ),
 };
@@ -400,6 +407,7 @@ export async function getEventsByOrganiserId(
   return {
     id: event.id,
     title: event.title,
+    currency: event.currency,
     organiserName: event.organiser.name,
     status: event.status,
 
@@ -411,7 +419,7 @@ export async function getEventsByOrganiserId(
 
     ticketsSold: event.attendees.length,
     gross: paidAttendees.reduce(
-      (sum, attendee) => sum + attendee.amountPaid,
+      (sum, attendee) => sum + Number(attendee.amountPaid),
       0
     ),
   };
@@ -475,6 +483,7 @@ export async function setEventStatus(
 =============================================================== */
 
 interface CreateEventInput {
+  currency?: Currency;
   title: string;
   slug: string;
   description: string;
@@ -509,6 +518,7 @@ export async function createEvent(
   const event = await prisma.$transaction(async (tx) => {
     const created = await tx.event.create({
       data: {
+        currency: input.currency ?? "NGN",
         title: input.title,
         slug: input.slug,
         description: input.description,
@@ -547,6 +557,7 @@ export async function createEvent(
       include: eventInclude,
     });
     await enqueueEmail(tx, { dedupeKey: `event-created/${created.id}`, kind: "event_created", recipient: created.organiser.email, eventId: created.id });
+    await recordAudit({ action: "event.created", actorId: created.organiserId, actorName: created.organiser.name, entityType: "event", entityId: created.id, summary: `Created event: ${created.title}`, metadata: { status: created.status, currency: created.currency } }, tx);
     return created;
   });
 
@@ -565,9 +576,17 @@ export async function createEvent(
  */
 export async function markListingFeePaid(
   eventId: string,
-  paystackRef: string
+  paystackRef: string,
+  paystackFee: number | null = null
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
+    const previous = await tx.listingFeePayment.findUnique({ where: { eventId } });
+    if (previous?.status === "paid") {
+      if (previous.paystackRef === paystackRef && previous.paystackFee === null && paystackFee !== null) {
+        await tx.listingFeePayment.update({ where: { eventId }, data: { paystackFee } });
+      }
+      return;
+    }
     await tx.listingFeePayment.upsert({
       where: {
         eventId,
@@ -575,6 +594,7 @@ export async function markListingFeePaid(
 
       update: {
         status: "paid",
+        paystackFee: paystackFee ?? undefined,
         paidAt: new Date(),
         paystackRef,
       },
@@ -584,6 +604,7 @@ export async function markListingFeePaid(
         amount: LISTING_FEE_NAIRA,
         paystackRef,
         status: "paid",
+        paystackFee: paystackFee ?? undefined,
         paidAt: new Date(),
       },
     });
@@ -597,6 +618,7 @@ export async function markListingFeePaid(
       },
       include: { organiser: true },
     });
+    await recordAudit({ action: "payment.listing_confirmed", actorName: "Paystack", entityType: "event", entityId: eventId, summary: `Listing payment confirmed for ${event.title}`, metadata: { amount: LISTING_FEE_NAIRA, currency: "NGN" }, dedupeKey: `listing-paid/${eventId}` }, tx);
     await enqueueEmail(tx, { dedupeKey: `listing-fee/${eventId}`, kind: "listing_fee_paid", recipient: event.organiser.email, eventId });
   });
 }
@@ -606,6 +628,7 @@ export async function markListingFeePaid(
 =============================================================== */
 
 export interface ContactRow {
+  currency?: Currency;
   id: string;
   eventTitle: string;
   name: string;
@@ -645,11 +668,12 @@ export async function getContactsForOrganiser(
   return attendees.map((attendee) => ({
     id: attendee.id,
     eventTitle: attendee.event.title,
+    currency: attendee.event.currency,
     name: attendee.name,
     email: attendee.email,
     phone: attendee.phone,
     ticketType: attendee.ticketType.name,
-    amountPaid: attendee.amountPaid,
+    amountPaid: Number(attendee.amountPaid),
     purchaseDate: attendee.purchaseDate
       .toISOString()
       .slice(0, 10),
@@ -687,12 +711,13 @@ export async function getAllContactsAdmin(): Promise<
   return attendees.map((attendee) => ({
     id: attendee.id,
     eventTitle: attendee.event.title,
+    currency: attendee.event.currency,
     organiserName: attendee.event.organiser.name,
     name: attendee.name,
     email: attendee.email,
     phone: attendee.phone,
     ticketType: attendee.ticketType.name,
-    amountPaid: attendee.amountPaid,
+    amountPaid: Number(attendee.amountPaid),
     purchaseDate: attendee.purchaseDate
       .toISOString()
       .slice(0, 10),
@@ -995,6 +1020,7 @@ export async function updateEvent(
       await rescheduleEventEmails(tx, eventId);
     }
 
+    await recordAudit({ action: "event.updated", actorId: organiserId, entityType: "event", entityId: event.id, summary: `Updated event: ${event.title}`, metadata: { fields: "Event details, ticket types and registration questions" } }, tx);
     return event;
   }, { timeout: 15000 });
 
@@ -1043,6 +1069,7 @@ export async function deleteEvent(
 
     select: {
       id: true,
+      title: true,
     },
   });
 
@@ -1076,9 +1103,8 @@ export async function deleteEvent(
    * according to the relations in the Prisma schema.
    */
 
-  await prisma.event.delete({
-    where: {
-      id: event.id,
-    },
+  await prisma.$transaction(async tx => {
+    await tx.event.delete({ where: { id: event.id } });
+    await recordAudit({ action: "event.deleted", actorId: organiserId, entityType: "event", entityId: event.id, summary: `Deleted event: ${event.title}` }, tx);
   });
 }

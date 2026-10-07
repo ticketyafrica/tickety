@@ -205,7 +205,7 @@ async function main() {
   for (const transaction of transactions) {
     const candidate = attendees.find(
       (attendee) =>
-        attendee.amountPaid === transaction.amount &&
+        Number(attendee.amountPaid) === transaction.amount &&
         createdAttendeeIds.has(attendee.ticketId)
     );
 

@@ -1,0 +1,4 @@
+BEGIN;
+ALTER TABLE "Order" ADD COLUMN "paystackFee" DECIMAL(14,2);
+ALTER TABLE "ListingFeePayment" ADD COLUMN "paystackFee" DECIMAL(14,2);
+COMMIT;

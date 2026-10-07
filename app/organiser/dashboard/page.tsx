@@ -11,7 +11,7 @@ import Button from "@/components/ui/Button";
 import DeleteEventButton from "@/components/organiser/DeleteEventButton";
 import PayListingFeeButton from "@/components/organiser/PayListingFeeButton";
 import { getEventsByOrganiserId } from "@/lib/data";
-import { formatNaira } from "@/lib/utils";
+import { Currency, formatMoney, formatCurrencyTotals } from "@/lib/currency";
 
 import {
   ArrowRight,
@@ -29,6 +29,7 @@ import {
 export const dynamic = "force-dynamic";
 
 type DashboardEvent = {
+  currency?: Currency;
   id: string;
   title: string;
   status: string;
@@ -74,10 +75,6 @@ export default async function OrganiserDashboardPage({
     0
   );
 
-  const totalGross = events.reduce(
-    (sum, event) => sum + (event.gross || 0),
-    0
-  );
 
  const now = new Date();
 
@@ -165,7 +162,7 @@ const liveEvents = events.filter((event) => {
               <Stat
                 icon={<Users size={15} />}
                 label="Gross sales"
-                value={formatNaira(totalGross)}
+                value={formatCurrencyTotals(events.map((event) => ({ amount: event.gross, currency: event.currency })))}
               />
             </div>
           </div>
@@ -445,7 +442,7 @@ const displayStatus = hasEnded
 
         <div>
           <p className="text-sm font-semibold text-[#111014]">
-            {formatNaira(event.gross)}
+            {formatMoney(event.gross, event.currency)}
           </p>
 
           <p className="mt-0.5 text-[9px] text-black/30">
@@ -509,7 +506,7 @@ const displayStatus = hasEnded
             </p>
 
             <p className="mt-1 text-sm font-semibold text-[#111014]">
-              {formatNaira(event.gross)}
+              {formatMoney(event.gross, event.currency)}
             </p>
           </div>
         </div>

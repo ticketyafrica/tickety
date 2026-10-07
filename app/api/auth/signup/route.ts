@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
       data: { name, email, passwordHash, role: "ORGANISER" },
     });
     await enqueueEmail(tx, { dedupeKey: `welcome/${created.id}`, kind: "welcome", recipient: created.email, userId: created.id });
+    await recordAudit({ action: "account.signed_up", actorId: created.id, actorName: created.name, entityType: "user", entityId: created.id, summary: `New organiser signup: ${created.name}` }, tx);
     return created;
   });
 

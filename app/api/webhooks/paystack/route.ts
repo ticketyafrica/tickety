@@ -1,3 +1,7 @@
+import { paystackFeeAmount } from "@/lib/payment-fees";
+import { LISTING_FEE_KOBO } from "@/lib/constants";
+import { prisma } from "@/lib/db";
+import { matchesTicketPayment } from "@/lib/payment-validation";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { markListingFeePaid } from "@/lib/data";
@@ -77,6 +81,9 @@ export async function POST(request: NextRequest) {
   let payload: {
     event?: string;
     data?: {
+      fees?: number | null;
+      amount?: number;
+      currency?: string;
       reference?: string;
       status?: string;
       metadata?: {
@@ -141,10 +148,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    if (payload.data?.amount !== LISTING_FEE_KOBO || payload.data?.currency !== "NGN") {
+      return NextResponse.json({ error: "Listing payment amount or currency does not match" }, { status: 400 });
+    }
     try {
       await markListingFeePaid(
         eventId,
-        reference
+        reference,
+        paystackFeeAmount(payload.data?.fees, payload.data!.amount!)
       );
     } catch (error) {
       console.error(
@@ -188,9 +199,14 @@ export async function POST(request: NextRequest) {
     }
 
     try {
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order || !matchesTicketPayment(order, payload.data ?? {})) {
+        return NextResponse.json({ error: "Payment does not match the order" }, { status: 400 });
+      }
       await completeTicketOrder(
         orderId,
-        reference
+        reference,
+        paystackFeeAmount(payload.data?.fees, payload.data!.amount!)
       );
     } catch (error) {
       /*

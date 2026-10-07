@@ -1,6 +1,7 @@
+import { recordAudit } from "./audit";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
-import { TICKET_COMMISSION_PERCENT } from "@/lib/constants";
+import { calculateTicketCommission } from "@/lib/constants";
 import { enqueueBookingEmails, dispatchBookingEmails } from "@/lib/email/queue";
 
 type StoredCustomAnswer = {
@@ -44,7 +45,8 @@ async function createUniqueTicketId(
 
 export async function completeTicketOrder(
   orderId: string,
-  paystackReference: string
+  paystackReference: string,
+  paystackFee: number | null = null
 ) {
   /*
    * Everything inside this transaction is atomic.
@@ -87,6 +89,9 @@ export async function completeTicketOrder(
        * If this order has already been completed, simply return it.
        */
       if (order.status === "paid") {
+        if (order.paystackFee === null && paystackFee !== null) {
+          await tx.order.update({ where: { id: order.id }, data: { paystackFee } });
+        }
         await enqueueBookingEmails(tx, order.id);
         return order;
       }
@@ -187,6 +192,7 @@ export async function completeTicketOrder(
         },
         data: {
           status: "paid",
+          paystackFee: paystackFee ?? undefined,
           paystackRef: paystackReference,
           paidAt: new Date(),
         },
@@ -234,12 +240,10 @@ export async function completeTicketOrder(
         /*
          * Calculate the commission for this individual ticket.
          *
-         * The ₦1,200 service fee is an ORDER-level fee and is
+         * The service fee is an ORDER-level fee and is
          * intentionally NOT added to each transaction.
          */
-        const ticketCommission = Math.round(
-          (item.unitPrice * TICKET_COMMISSION_PERCENT) / 100
-        );
+        const ticketCommission = calculateTicketCommission(Number(item.unitPrice), order.currency);
 
         for (
           let index = 0;
@@ -291,7 +295,7 @@ export async function completeTicketOrder(
            * platformFee represents Tickety's 10% commission on
            * this ticket.
            *
-           * The ₦1,200 service fee remains recorded on the Order
+           * The service fee remains recorded on the Order
            * because it is charged once per order.
            */
           await tx.transaction.create({
@@ -314,6 +318,7 @@ export async function completeTicketOrder(
        * -----------------------------------------------------------
        */
 
+      await recordAudit({ action: "booking.confirmed", actorName: Number(order.amount) > 0 ? "Paystack" : "Guest checkout", entityType: "order", entityId: order.id, summary: `Confirmed booking ${order.reference}`, metadata: { amount: Number(order.amount), currency: order.currency, ticketCount: order.items.reduce((sum, item) => sum + item.quantity, 0) }, dedupeKey: `booking-confirmed/${order.id}` }, tx);
       await enqueueBookingEmails(tx, order.id);
       return tx.order.findUniqueOrThrow({
         where: {
@@ -336,7 +341,8 @@ export async function completeTicketOrder(
     },
     {
       isolationLevel: "Serializable",
-      timeout: 15000,
+      // Allow remote database latency during atomic ticket and outbox writes.
+      timeout: 30000,
     }
   );
 
@@ -494,6 +500,7 @@ export async function completeFreeTicketOrder(
         }
       }
 
+      await recordAudit({ action: "booking.confirmed", actorName: Number(order.amount) > 0 ? "Paystack" : "Guest checkout", entityType: "order", entityId: order.id, summary: `Confirmed booking ${order.reference}`, metadata: { amount: Number(order.amount), currency: order.currency, ticketCount: order.items.reduce((sum, item) => sum + item.quantity, 0) }, dedupeKey: `booking-confirmed/${order.id}` }, tx);
       await enqueueBookingEmails(tx, order.id);
       return tx.order.findUniqueOrThrow({
         where: {
@@ -516,7 +523,8 @@ export async function completeFreeTicketOrder(
     },
     {
       isolationLevel: "Serializable",
-      timeout: 15000,
+      // Allow remote database latency during atomic ticket and outbox writes.
+      timeout: 30000,
     }
   );
 

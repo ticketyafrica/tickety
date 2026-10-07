@@ -45,12 +45,26 @@ export async function enqueueBookingEmails(tx: Prisma.TransactionClient, orderId
     update: { verifiedAt: new Date() },
     create: { eventId: order.eventId, email, verifiedAt: new Date() },
   });
-  await enqueueEmail(tx, { dedupeKey: `booking/${order.id}/customer`, kind: "booking_customer", recipient: email, orderId, eventId: order.eventId });
-  await enqueueEmail(tx, { dedupeKey: `booking/${order.id}/organiser`, kind: "booking_organiser", recipient: order.event.organiser.email, orderId, eventId: order.eventId });
+  const now = new Date();
+  const jobs: Prisma.EmailNotificationCreateManyInput[] = [
+    { dedupeKey: `booking/${order.id}/customer`, kind: "booking_customer", recipient: email, orderId, eventId: order.eventId, scheduledAt: now, availableAt: now },
+    { dedupeKey: `booking/${order.id}/organiser`, kind: "booking_organiser", recipient: order.event.organiser.email.trim().toLowerCase(), orderId, eventId: order.eventId, scheduledAt: now, availableAt: now },
+  ];
   for (const recipient of new Set((process.env.ADMIN_NOTIFICATION_EMAILS || "hello@tickety.africa").split(",").map((value) => value.trim().toLowerCase()).filter(Boolean))) {
-    await enqueueEmail(tx, { dedupeKey: `booking/${order.id}/admin/${recipient}`, kind: "booking_admin", recipient, orderId, eventId: order.eventId });
+    jobs.push({ dedupeKey: `booking/${order.id}/admin/${recipient}`, kind: "booking_admin", recipient, orderId, eventId: order.eventId, scheduledAt: now, availableAt: now });
   }
-  await enqueueEventReminders(tx, preference.id);
+  // Reuse the preference and event already loaded. One insert avoids a
+  // database round trip for every reminder while ticket inventory is locked.
+  if (preference.verifiedAt && !preference.unsubscribedAt) {
+    for (const milestone of reminderSchedule(order.event, now)) {
+      jobs.push({
+        dedupeKey: `event-email/${preference.id}/${milestone.kind}`,
+        recipient: email, eventId: order.eventId, preferenceId: preference.id,
+        ...milestone, availableAt: milestone.scheduledAt,
+      });
+    }
+  }
+  await tx.emailNotification.createMany({ data: jobs, skipDuplicates: true });
 }
 
 // Existing sent messages keep their history. Pending milestones move with the event.

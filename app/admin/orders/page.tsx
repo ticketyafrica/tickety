@@ -1,0 +1,12 @@
+import Link from "next/link";
+import { prisma } from "@/lib/db";
+import { requireAdminPage } from "@/lib/admin/access";
+import { adminFilters, AdminParams } from "@/lib/admin/filters";
+import { ordersWhere, ADMIN_PAGE_SIZE } from "@/lib/admin/data";
+import { formatMoney } from "@/lib/currency";
+import { AdminTitle, AdminFiltersBar, AdminTable, AdminPagination, DetailLink, StatusBadge, adminTime } from "@/components/admin/AdminUI";
+export default async function AdminOrders({ searchParams = {} }: { searchParams?: AdminParams }) {
+  await requireAdminPage(); const f = adminFilters(searchParams), where = ordersWhere(f);
+  const [orders, total] = await Promise.all([prisma.order.findMany({ where, include: { event: { select: { title: true, id: true } }, _count: { select: { attendees: true } } }, orderBy: { createdAt: "desc" }, skip: (f.page - 1) * ADMIN_PAGE_SIZE, take: ADMIN_PAGE_SIZE }), prisma.order.count({ where })]);
+  return <><AdminTitle title="Follow every payment." description="Inspect bookings, Paystack references and fee splits. Filters follow order creation; open an order to see payment and ticket issuance." section="orders" params={searchParams} /><div className="mb-5 flex gap-4 text-xs"><span className="font-semibold text-violet-700">Ticket orders</span><Link href="/admin/orders/listing-fees" className="text-[#A18CAD] hover:text-violet-700">Listing fees</Link></div><AdminFiltersBar params={searchParams} search currency statuses={["paid", "pending", "failed"]} /><AdminTable headers={["Reference", "Customer", "Event", "Total", "Tickety before Paystack", "Status", "Tickets", "Created"]} empty={!orders.length}>{orders.map(o => <tr key={o.id} className="hover:bg-[#FCFAFF]"><td><DetailLink href={`/admin/orders/${o.id}`}>{o.reference}</DetailLink></td><td>{o.name}<p className="mt-1 text-[10px] text-[#A090AE]">{o.email}</p></td><td><DetailLink href={`/admin/events/${o.event.id}`}>{o.event.title}</DetailLink></td><td className="whitespace-nowrap font-semibold">{formatMoney(Number(o.amount), o.currency)}</td><td className="whitespace-nowrap">{formatMoney(Number(o.platformFee), o.currency)}</td><td><StatusBadge status={o.status} />{o.status === "paid" && !o._count.attendees && <p className="mt-1 text-[9px] text-amber-700">Issuance pending</p>}</td><td>{o._count.attendees}</td><td className="whitespace-nowrap text-[#A090AE]">{adminTime(o.createdAt)}</td></tr>)}</AdminTable><AdminPagination total={total} page={f.page} path="/admin/orders" params={searchParams} /></>;
+}

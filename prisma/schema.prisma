@@ -15,6 +15,10 @@ model User {
   passwordHash           String
   role                   Role    @default(ORGANISER)
   paystackSubaccountCode String?
+  paystackUsdSubaccountCode String?
+  payoutPinHash          String?
+  payoutPinFailedAttempts Int @default(0)
+  payoutPinLockedUntil   DateTime?
 
   events Event[]
 
@@ -27,6 +31,7 @@ model User {
 model Event {
   id            String      @id @default(cuid())
   slug          String      @unique
+  currency      Currency    @default(NGN)
   title         String
   description   String
   state         String
@@ -102,7 +107,7 @@ model StaffInvitation {
 model TicketType {
   id               String @id @default(cuid())
   name             String
-  price            Int
+  price            Decimal @db.Decimal(14, 2)
   quantityTotal    Int
   quantitySold     Int    @default(0)
   eventId          String
@@ -132,18 +137,20 @@ model CustomQuestion {
 model Order {
   id          String @id @default(cuid())
   reference   String @unique
+  currency    Currency @default(NGN)
   paystackRef String @unique
 
   name  String
   email String
   phone String
 
-  amount           Int
-  ticketAmount     Int @default(0)
-  serviceFee       Int @default(0)
-  organiserAmount  Int @default(0)
-  commissionAmount Int @default(0)
-  platformFee      Int @default(0)
+  amount           Decimal @db.Decimal(14, 2)
+  ticketAmount     Decimal @default(0) @db.Decimal(14, 2)
+  serviceFee       Decimal @default(0) @db.Decimal(14, 2)
+  organiserAmount  Decimal @default(0) @db.Decimal(14, 2)
+  commissionAmount Decimal @default(0) @db.Decimal(14, 2)
+  platformFee      Decimal @default(0) @db.Decimal(14, 2)
+  paystackFee      Decimal? @db.Decimal(14, 2)
 
   status PaymentStatus @default(pending)
 
@@ -166,7 +173,7 @@ model Order {
 model OrderItem {
   id           String @id @default(cuid())
   quantity     Int
-  unitPrice    Int
+  unitPrice    Decimal @db.Decimal(14, 2)
   orderId      String
   ticketTypeId String
 
@@ -183,7 +190,7 @@ model Attendee {
   email         String
   phone         String
   ticketId      String        @unique
-  amountPaid    Int
+  amountPaid    Decimal @db.Decimal(14, 2)
   purchaseDate  DateTime      @default(now())
   paymentStatus PaymentStatus @default(pending)
   checkInStatus Boolean       @default(false)
@@ -208,8 +215,8 @@ model Attendee {
 
 model Transaction {
   id          String        @id @default(cuid())
-  amount      Int
-  platformFee Int
+  amount      Decimal @db.Decimal(14, 2)
+  platformFee Decimal @db.Decimal(14, 2)
   status      PaymentStatus @default(pending)
   date        DateTime      @default(now())
 
@@ -219,6 +226,7 @@ model Transaction {
 }
 
 model ListingFeePayment {
+  paystackFee Decimal? @db.Decimal(14, 2)
   id          String        @id @default(cuid())
   eventId     String        @unique
   amount      Int
@@ -335,4 +343,28 @@ enum TicketStatus {
   used
   transferred
   cancelled
+}
+
+
+enum Currency {
+  NGN
+  USD
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String
+  actorId    String?
+  actorName  String?
+  entityType String
+  entityId   String?
+  summary    String
+  metadata   Json?
+  dedupeKey  String?  @unique
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
 }

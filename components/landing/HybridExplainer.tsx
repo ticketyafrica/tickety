@@ -252,7 +252,7 @@ function TicketPreview() {
               </p>
 
               <p className="mt-1 text-[19px] font-bold tracking-[-0.045em] text-zinc-950">
-                {formatNaira(26200)}
+                {formatNaira(26250)}
               </p>
             </div>
 

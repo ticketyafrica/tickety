@@ -13,7 +13,10 @@ import {
   Ticket,
 } from "lucide-react";
 import { EventItem } from "@/lib/types";
-import { formatNaira, formatEventDate, ticketsLeft } from "@/lib/utils";
+import { formatEventDate, ticketsLeft } from "@/lib/utils";
+
+import { formatMoney, roundMoney } from "@/lib/currency";
+import { calculateTicketServiceFee, TICKET_SERVICE_FEE_CAP_NAIRA, TICKET_SERVICE_FEE_CAP_USD } from "@/lib/constants";
 
 type CheckoutFormProps = {
   event: EventItem;
@@ -26,6 +29,8 @@ type AnswerMap = Record<string, string>;
 export default function CheckoutForm({
   event,
 }: CheckoutFormProps) {
+  const currency = event.currency ?? "NGN";
+  const formatPrice = (amount: number) => formatMoney(amount, currency);
   const [selectedTickets, setSelectedTickets] =
     useState<SelectedTickets>({});
 
@@ -66,7 +71,10 @@ export default function CheckoutForm({
     [selectedItems]
   );
 
+  const serviceFee = calculateTicketServiceFee(total, currency);
+  const totalToPay = roundMoney(total + serviceFee);
   const isFree = total === 0;
+  const belowUsdMinimum = currency === "USD" && !isFree && totalToPay < 2;
 
   function changeQuantity(
     ticketId: string,
@@ -356,7 +364,7 @@ export default function CheckoutForm({
                       </p>
 
                       <p className="mt-2 text-sm font-semibold text-zinc-900">
-                        {formatNaira(ticket.price)}
+                        {formatPrice(ticket.price)}
                       </p>
                     </div>
 
@@ -587,12 +595,12 @@ export default function CheckoutForm({
 
                         <p className="mt-1 text-[10px] text-zinc-400">
                           {ticket.quantity} ×{" "}
-                          {formatNaira(ticket.price)}
+                          {formatPrice(ticket.price)}
                         </p>
                       </div>
 
                       <p className="text-xs font-semibold text-zinc-900">
-                        {formatNaira(
+                        {formatPrice(
                           ticket.price *
                             ticket.quantity
                         )}
@@ -604,8 +612,20 @@ export default function CheckoutForm({
 
               <div className="my-5 h-px bg-zinc-100" />
 
-              <div className="flex items-center justify-between">
+              <div className="mb-3 flex items-center justify-between text-xs text-zinc-500">
+                <span>Ticket subtotal</span>
+                <span>{formatPrice(total)}</span>
+              </div>
+              {!isFree && (
+                <div className="mb-4 flex items-center justify-between gap-4 text-xs text-zinc-500">
+                  <span>Service fee (5%, capped at {formatPrice(currency === "USD" ? TICKET_SERVICE_FEE_CAP_USD : TICKET_SERVICE_FEE_CAP_NAIRA)})</span>
+                  <span className="shrink-0">{formatPrice(serviceFee)}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between" aria-live="polite">
                 <span className="text-xs text-zinc-500">
+                  Total for{" "}
                   {ticketCount}{" "}
                   {ticketCount === 1
                     ? "ticket"
@@ -613,15 +633,29 @@ export default function CheckoutForm({
                 </span>
 
                 <span className="text-lg font-semibold tracking-[-0.03em] text-zinc-950">
-                  {formatNaira(total)}
+                  {formatPrice(totalToPay)}
                 </span>
               </div>
+
+              {!isFree && (
+                <p className="mt-4 rounded-lg bg-violet-50 px-3 py-2 text-xs leading-5 text-violet-900">
+                  You will pay <strong>{formatPrice(totalToPay)}</strong> on Paystack,
+                  including the service fee.
+                </p>
+              )}
+
+              {belowUsdMinimum && (
+                <p className="mt-3 text-xs leading-5 text-amber-700">
+                  USD payments require a total of at least {formatPrice(2)}.
+                  Select more tickets to continue.
+                </p>
+              )}
 
               <button
                 type="button"
                 onClick={handleCheckout}
                 disabled={
-                  loading || selectedItems.length === 0
+                  loading || selectedItems.length === 0 || belowUsdMinimum
                 }
                 className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400"
               >

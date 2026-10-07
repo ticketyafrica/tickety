@@ -1,3 +1,6 @@
+import { paystackFeeAmount } from "@/lib/payment-fees";
+import { matchesTicketPayment } from "@/lib/payment-validation";
+import { toMinorUnits } from "@/lib/currency";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyTransaction } from "@/lib/paystack";
@@ -141,17 +144,16 @@ export async function GET(request: NextRequest) {
      * Order.amount is the complete amount the customer was
      * supposed to pay:
      *
-     * ticket amount + ₦1,200 service fee
+     * ticket amount + the stored service fee
      *
      * Paystack returns the successful transaction amount in kobo.
      */
 
     const expectedAmountKobo =
-      order.amount * 100;
+      toMinorUnits(Number(order.amount));
 
     if (
-      verification.amount !==
-      expectedAmountKobo
+      !matchesTicketPayment(order, { ...verification, reference })
     ) {
       console.error(
         "Paystack amount mismatch:",
@@ -182,6 +184,10 @@ export async function GET(request: NextRequest) {
      */
 
     if (order.status === "paid") {
+      const fee = paystackFeeAmount(verification.fees, verification.amount);
+      if (order.paystackFee === null && fee !== null) {
+        await prisma.order.updateMany({ where: { id: order.id, paystackFee: null }, data: { paystackFee: fee } });
+      }
       return NextResponse.redirect(
         new URL(
           `/tickets/${order.reference}`,
@@ -208,7 +214,8 @@ export async function GET(request: NextRequest) {
     const completedOrder =
       await completeTicketOrder(
         metadata.orderId,
-        reference
+        reference,
+        paystackFeeAmount(verification.fees, verification.amount)
       );
 
     /*

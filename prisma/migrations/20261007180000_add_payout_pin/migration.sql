@@ -1,0 +1,3 @@
+BEGIN;
+ALTER TABLE "User" ADD COLUMN "payoutPinHash" TEXT, ADD COLUMN "payoutPinFailedAttempts" INTEGER NOT NULL DEFAULT 0, ADD COLUMN "payoutPinLockedUntil" TIMESTAMP(3);
+COMMIT;

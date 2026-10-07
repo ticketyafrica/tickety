@@ -1,68 +1,35 @@
-import StatCard from "@/components/ui/StatCard";
-import AdminEventsTable from "@/components/admin/AdminEventsTable";
-import AdminTransactionsTable from "@/components/admin/AdminTransactionsTable";
-import AdminOrganisersTable from "@/components/admin/AdminOrganisersTable";
-import { getAdminEvents, getTransactions, getOrganisersSummary } from "@/lib/data";
-import { formatNaira } from "@/lib/utils";
-import { Building2, Receipt, TrendingUp, Users, Download, ArrowRight } from "lucide-react";
-import Button from "@/components/ui/Button";
-
-export const dynamic = "force-dynamic";
-
-export default async function AdminPage() {
-  const [adminEvents, transactions, organisers] = await Promise.all([
-    getAdminEvents(),
-    getTransactions(),
-    getOrganisersSummary(),
-  ]);
-
-  const totalFees = transactions.reduce((sum, t) => (t.status === "paid" ? sum + t.platformFee : sum), 0);
-  const liveEvents = adminEvents.filter((e) => e.status === "live").length;
-  const totalTicketsSold = adminEvents.reduce((sum, e) => sum + e.ticketsSold, 0);
-
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <p className="text-sm text-ink-light">Admin panel</p>
-      <h1 className="font-display text-2xl font-semibold text-ink sm:text-3xl">Platform overview</h1>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <StatCard label="Live events" value={liveEvents.toString()} icon={<Building2 size={18} />} />
-        <StatCard label="Organisers" value={organisers.length.toString()} icon={<Users size={18} />} />
-        <StatCard label="Tickets sold, all events" value={totalTicketsSold.toString()} icon={<TrendingUp size={18} />} />
-        <StatCard label="Platform fees collected" value={formatNaira(totalFees)} icon={<Receipt size={18} />} />
-      </div>
-
-      <div className="mt-10">
-        <p className="mb-3 text-sm font-semibold text-ink">Events</p>
-        <AdminEventsTable events={adminEvents} />
-      </div>
-
-            <div className="mt-10">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-ink">Organisers</p>
-          <Button href="/api/admin/organisers/export" variant="ghost" size="md" icon={<Download size={14} />}>
-            Export CSV
-          </Button>
-        </div>
-        <AdminOrganisersTable organisers={organisers} />
-      </div>
-
-      <div className="mt-10">
-        <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-ink">Contacts</p>
-          <Button href="/admin/contacts" variant="ghost" size="md" icon={<ArrowRight size={14} />} className="flex-row-reverse">
-            View all contacts
-          </Button>
-        </div>
-        <p className="text-sm text-ink-light">
-          Every attendee across every organiser — names, phone numbers, and question answers, all exportable.
-        </p>
-      </div>
-
-      <div className="mt-10">
-        <p className="mb-3 text-sm font-semibold text-ink">Transactions</p>
-        <AdminTransactionsTable transactions={transactions} />
-      </div>
-    </div>
-  );
+import FinancialBreakdown from "@/components/admin/FinancialBreakdown";
+import SyncPaymentFees from "@/components/admin/SyncPaymentFees";
+import { revenueGrowth } from "@/lib/admin/analytics";
+import { requireAdminPage } from "@/lib/admin/access";
+import Link from "next/link";
+import { ArrowUpRight, Activity, TrendingDown, TrendingUp, Users, Ticket } from "lucide-react";
+import { adminFilters, AdminParams, filterQuery } from "@/lib/admin/filters";
+import { overviewData, auditEntityLink } from "@/lib/admin/data";
+import { formatMoney } from "@/lib/currency";
+import { AdminTitle, AdminFiltersBar, cardClass, adminTime, DetailLink } from "@/components/admin/AdminUI";
+import RevenueChart from "@/components/admin/RevenueChart";
+export default async function AdminOverview({ searchParams = {} }: { searchParams?: AdminParams }) {
+  await requireAdminPage();
+  const f = adminFilters(searchParams), d = await overviewData(f); const money = (n: number) => formatMoney(n, f.currency);
+  const metrics = [{ label: "Tickets issued", value: d.totals.ticketCount.toLocaleString(), note: "Including free confirmed bookings", icon: Ticket, growth: revenueGrowth(d.totals.ticketCount, d.previous.ticketCount) }, { label: "New accounts", value: d.signups.toLocaleString(), note: "All currencies · selected period", icon: Users, growth: d.signupGrowth }];
+  const total = d.totals.platform;
+  const composition = [{ label: "Ticket commission", value: d.totals.commission, color: "#7C3AED" }, { label: "Service fees", value: d.totals.serviceFee, color: "#BA9EE9" }, { label: "Listing fees", value: d.totals.listing, color: "#CDE8AA" }];
+  const compositionTotal = composition.reduce((sum, c) => sum + c.value, 0);
+  let boundary = 0;
+  const segments = composition.map(c => { const start = boundary; boundary += compositionTotal ? c.value / compositionTotal * 100 : 0; return `${c.color} ${start}% ${boundary}%`; }).join(", ");
+  return <>
+    <AdminTitle title="A clear view of Tickety." description="Follow the money, meet your newest organisers and keep your finger on the pulse." section="overview" params={searchParams} />
+    <AdminFiltersBar params={searchParams} currency />
+    <FinancialBreakdown title="Your revenue, clearly explained" totals={d.totals} currency={f.currency} growth={d.growth}>{d.totals.missingFees > 0 && <SyncPaymentFees />}</FinancialBreakdown>
+    <div className="mb-7 grid gap-4 sm:grid-cols-2">{metrics.map((metric) => { const Icon = metric.icon; return <div key={metric.label} className={`${cardClass} p-5`}><div className="flex items-center justify-between"><span className="text-[11px] text-[#8B7B99]">{metric.label}</span><Icon size={17} className="text-[#AF97C5]" /></div><p className="mt-5 break-words font-display text-3xl font-semibold tracking-[-0.05em]">{metric.value}</p><p className="mt-3 text-[10px] leading-5 text-[#A08FAE]">{metric.note}</p>{metric.growth !== null && <p className={`mt-2 flex items-center gap-1 text-[10px] ${metric.growth < 0 ? "text-red-600" : "text-green-700"}`}>{metric.growth < 0 ? <TrendingDown size={12} /> : <TrendingUp size={12} />}{Math.abs(metric.growth).toFixed(1)}% {metric.growth < 0 ? "down" : "up"} vs previous period</p>}</div>; })}</div>
+    <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]"><section className={`${cardClass} p-5 sm:p-6`}><RevenueChart data={d.series} currency={f.currency} /></section><section className={`${cardClass} p-6`}><h2 className="text-sm font-semibold">What makes up Tickety’s share</h2><p className="mt-1 text-[11px] text-[#9A8AA6]">Commission and fees, before Paystack charges</p><div className="relative mx-auto my-7 flex h-40 w-40 items-center justify-center rounded-full" style={{ background: total ? `conic-gradient(${segments})` : "#EEE8F4" }}><div className="flex h-28 w-28 flex-col items-center justify-center rounded-full bg-white"><span className="text-[10px] text-[#A08EAF]">Before Paystack</span><span className="mt-1 text-sm font-semibold">{money(total)}</span></div></div><dl className="space-y-4">{composition.map(c => <div key={c.label} className="flex justify-between text-xs"><dt className="flex items-center gap-2 text-[#92829F]"><span className="h-2 w-2 rounded-full" style={{ background: c.color }} />{c.label}</dt><dd className="font-semibold">{money(c.value)}</dd></div>)}<div className="flex justify-between border-t pt-4 text-xs"><dt className="text-[#92829F]">Organiser share</dt><dd className="font-semibold">{money(d.totals.organiser)}</dd></div></dl></section></div>
+    <p className="my-4 text-[10px] leading-5 text-[#9A8CA5]">All amounts use confirmed payment dates in {f.currency}. “Total money collected” includes the organisers’ share. “What Tickety keeps” subtracts confirmed Paystack fees. Growth compares the previous {d.series.length}-day period.</p>
+    <section className={`${cardClass} mt-6 flex flex-wrap items-center justify-between gap-5 p-5`}><div className="flex items-center gap-3"><span className="rounded-xl bg-violet-50 p-3 text-violet-600"><Activity size={19} /></span><div><h2 className="text-xs font-semibold">Operational pulse</h2><p className="mt-1 text-[10px] text-[#9A8CA5]">Publication status is across the platform; payment counts follow your filters.</p></div></div><div className="flex flex-wrap gap-6 text-xs"><Link href="/admin/events?range=year&status=live" className="hover:text-violet-700"><strong>{d.activeEvents}</strong> published events</Link><Link href="/admin/events?range=year&status=pending" className="hover:text-violet-700"><strong>{d.pendingEvents}</strong> pending events</Link><Link href={`/admin/orders?${filterQuery(searchParams, { status: "pending" })}`} className="hover:text-violet-700"><strong>{d.pendingOrders}</strong> pending orders</Link><Link href={`/admin/orders?${filterQuery(searchParams, { status: "failed" })}`} className="hover:text-violet-700"><strong>{d.failedOrders}</strong> failed orders</Link><Link href={`/admin/orders?${filterQuery(searchParams, { status: "paid", issuance: "missing" })}`} className={d.issuancePending ? "text-amber-700" : "text-[#9A8CA5]"}><strong>{d.issuancePending}</strong> bookings awaiting tickets</Link></div></section>
+    <div className="mt-6 grid gap-5 xl:grid-cols-2"><section className={`${cardClass} p-6`}><SectionHeading title="Top performing events" href={`/admin/events?${filterQuery(searchParams)}`} /><div className="mt-5 space-y-4">{d.topEvents.map((event, index) => <div key={event.id} className="flex items-center gap-3 rounded-xl bg-[#FAF8FD] p-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[10px] text-[#AB97BA]">0{index + 1}</span><div className="min-w-0 flex-1"><DetailLink href={`/admin/events/${event.id}`}>{event.title}</DetailLink><p className="mt-1 text-[10px] text-[#A090AE]">{event.tickets} tickets issued</p></div><span className="text-xs font-semibold">{money(event.gross)}</span></div>)}{!d.topEvents.length && <Empty>No ticket revenue in this period.</Empty>}</div></section>
+    <section className={`${cardClass} p-6`}><SectionHeading title="Newest signups" href={`/admin/users?${filterQuery(searchParams)}`} /><div className="mt-5 divide-y divide-[#EEE8F4]">{d.recentUsers.map(user => <div key={user.id} className="flex items-center gap-3 py-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#EEE6F7] text-xs text-[#8359A5]">{user.name[0]}</span><div className="min-w-0 flex-1"><DetailLink href={`/admin/users/${user.id}`}>{user.name}</DetailLink><p className="mt-1 truncate text-[10px] text-[#9E8CAB]">{user.email}</p></div><span className="text-[10px] text-[#A08BAD]">{adminTime(user.createdAt)}</span></div>)}{!d.recentUsers.length && <Empty>No new accounts in this period.</Empty>}</div></section></div>
+    <section className={`${cardClass} mt-6 p-6`}><SectionHeading title="Latest platform activity" href={`/admin/audit?${filterQuery(searchParams)}`} /><div className="mt-5 divide-y divide-[#EEE8F4]">{d.recentActivity.map(activity => { const href = activity.action === "event.deleted" ? null : auditEntityLink(activity.entityType, activity.entityId); return <div key={activity.id} className="flex flex-wrap items-center justify-between gap-3 py-4"><div><p className="text-xs font-medium">{href ? <Link href={href} className="hover:text-violet-700">{activity.summary}</Link> : activity.summary}</p><p className="mt-1 text-[10px] text-[#A18CAF]">{activity.actorName || "System"} · {activity.action}</p></div><span className="text-[10px] text-[#A18CAF]">{adminTime(activity.createdAt)}</span></div>; })}{!d.recentActivity.length && <Empty>New platform activity will appear here as it happens.</Empty>}</div></section>
+  </>;
 }
+function SectionHeading({ title, href }: { title: string; href: string }) { return <div className="flex items-center justify-between gap-3"><h2 className="text-sm font-semibold">{title}</h2><Link href={href} className="inline-flex min-h-8 items-center gap-1 text-[10px] font-medium text-violet-700">View all <ArrowUpRight size={12} /></Link></div>; }
+function Empty({ children }: { children: React.ReactNode }) { return <p className="py-10 text-center text-xs text-[#A18CAF]">{children}</p>; }

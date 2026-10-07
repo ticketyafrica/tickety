@@ -1,3 +1,4 @@
+import type { Currency } from "./currency";
 const PAYSTACK_BASE = "https://api.paystack.co";
 
 /**
@@ -44,6 +45,7 @@ interface DynamicSplitSubaccount {
 }
 
 interface DynamicSplit {
+  currency?: Currency;
   type: "flat" | "percentage";
   bearer_type:
     | "account"
@@ -56,6 +58,7 @@ interface DynamicSplit {
 }
 
 interface InitializeParams {
+  currency?: Currency;
   email: string;
   amountKobo: number;
   callbackUrl: string;
@@ -89,6 +92,7 @@ export async function initializeTransaction(
   const body: Record<string, unknown> = {
     email: params.email,
     amount: params.amountKobo,
+    currency: params.currency ?? "NGN",
     callback_url: params.callbackUrl,
     metadata: params.metadata,
   };
@@ -133,6 +137,8 @@ export async function initializeTransaction(
  */
 
 interface VerifyResult {
+  fees?: number | null;
+  currency: string;
   status: string;
   amount: number;
   reference: string;
@@ -142,7 +148,8 @@ interface VerifyResult {
 }
 
 export async function verifyTransaction(
-  reference: string
+  reference: string,
+  options: { signal?: AbortSignal } = {}
 ): Promise<VerifyResult> {
   const secret = getPaystackSecret();
 
@@ -154,6 +161,7 @@ export async function verifyTransaction(
       headers: {
         Authorization: `Bearer ${secret}`,
       },
+      signal: options.signal,
     }
   );
 
@@ -453,4 +461,36 @@ export async function resolveAccountNumber(
   }
 
   return data.data as ResolveAccountResult;
+}
+export interface PaystackSubaccount {
+  currency: string;
+  active?: boolean;
+  primary_contact_email?: string;
+  subaccount_code: string;
+  account_number?: string;
+  account_name?: string;
+  settlement_bank?: string;
+  business_name?: string;
+}
+
+export async function getSubaccount(code: string) {
+  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code)}`, {
+    headers: { Authorization: `Bearer ${getPaystackSecret()}` }, cache: "no-store",
+  });
+  const data = await parsePaystackResponse(res);
+  if (!res.ok || !data.status) throw new Error("Unable to retrieve payout account from Paystack");
+  return data.data as PaystackSubaccount;
+}
+
+export async function updateSubaccount(code: string, params: {
+  bankCode: string; accountNumber: string; businessName: string;
+}) {
+  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code)}`, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${getPaystackSecret()}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ bank_code: params.bankCode, account_number: params.accountNumber, business_name: params.businessName }),
+  });
+  const data = await parsePaystackResponse(res);
+  if (!res.ok || !data.status) throw new Error(data.message ?? "Unable to update payout account with Paystack");
+  return data.data as PaystackSubaccount;
 }

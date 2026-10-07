@@ -1,31 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import { setEventStatus } from "@/lib/data";
+import { Prisma } from "@prisma/client";
+import { getAdminUser } from "@/lib/admin/access";
 import { prisma } from "@/lib/db";
-
+import { recordAudit } from "@/lib/audit";
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const body = await request.json();
+  const admin = await getAdminUser();
+  if (!admin) return NextResponse.json({ error: "Administrator access required" }, { status: 403 });
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }); }
   const status = body?.status;
-  if (!["live", "pending", "disabled"].includes(status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  if (!["live", "pending", "disabled", "archived"].includes(status)) return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  try {
+    const found = await prisma.$transaction(async tx => {
+      const event = await tx.event.findUnique({ where: { id: params.id }, select: { status: true, title: true } });
+      if (!event) return false;
+      if (event.status === status) return true;
+      await tx.event.update({ where: { id: params.id }, data: { status } });
+      await recordAudit({ action: "event.status_changed", actorId: admin.id, actorName: admin.name, entityType: "event", entityId: params.id, summary: `Changed publication status for ${event.title}`, metadata: { from: event.status, to: status } }, tx);
+      return true;
+    }, { isolationLevel: "Serializable", timeout: 15000 });
+    return found ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Event not found" }, { status: 404 });
+  } catch (error) {
+    const conflict = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034";
+    return NextResponse.json({ error: conflict ? "This event changed while saving. Refresh and try again." : "Unable to update event." }, { status: conflict ? 409 : 500 });
   }
-
-  if (session.user.role !== "ADMIN") {
-    const event = await prisma.event.findUnique({
-      where: { id: params.id },
-      select: { organiserId: true },
-    });
-    if (!event || event.organiserId !== session.user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
-
-  await setEventStatus(params.id, status);
-  return NextResponse.json({ ok: true });
 }

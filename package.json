@@ -6,7 +6,7 @@
     "seed": "ts-node --project tsconfig.scripts.json prisma/seed.ts"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "prisma generate && next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
@@ -17,7 +17,10 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:clear": "ts-node --project tsconfig.scripts.json prisma/clear.ts"
+    "db:clear": "ts-node --project tsconfig.scripts.json prisma/clear.ts",
+    "test:payments": "TS_NODE_PROJECT=tsconfig.scripts.json node --require ts-node/register --test tests/payments.test.ts",
+    "test:payouts": "TS_NODE_PROJECT=tsconfig.scripts.json node --require ts-node/register --test tests/payout*.test.ts",
+    "test:admin": "TS_NODE_PROJECT=tsconfig.scripts.json node --require ts-node/register --test tests/admin.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.16.1",

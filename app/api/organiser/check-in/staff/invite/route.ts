@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import crypto from "crypto";
@@ -135,11 +136,9 @@ export async function POST(request: Request) {
         );
       }
 
-      await prisma.eventStaff.create({
-        data: {
-          eventId: event.id,
-          userId: existingUser.id,
-        },
+      await prisma.$transaction(async tx => {
+        await tx.eventStaff.create({ data: { eventId: event.id, userId: existingUser.id } });
+        await recordAudit({ action: "staff.assigned", actorId: session.user.id, actorName: session.user.name || "Organiser", entityType: "event", entityId: event.id, summary: "Added existing staff member to event check-in", metadata: { targetId: existingUser.id } }, tx);
       });
 
       return NextResponse.json({
@@ -174,6 +173,7 @@ export async function POST(request: Request) {
       const invitation = await tx.staffInvitation.create({
         data: { email, eventId: event.id, invitedById: session.user.id, tokenHash, expiresAt },
       });
+      await recordAudit({ action: "staff.invited", actorId: session.user.id, actorName: session.user.name || "Organiser", entityType: "event", entityId: event.id, summary: "Invited event check-in staff", metadata: { targetId: invitation.id }, dedupeKey: `staff-invited/${invitation.id}` }, tx);
       await enqueueEmail(tx, { dedupeKey: `staff-invite/${invitation.id}`, kind: "staff_invitation", recipient: email, eventId: event.id, invitationId: invitation.id, expiresAt, context: { inviteUrl } });
     });
 

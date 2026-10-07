@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { Transaction } from "@/lib/types";
-import { formatNaira } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 
 export default function AdminTransactionsTable({
   transactions,
@@ -96,7 +96,7 @@ export default function AdminTransactionsTable({
 
                   <div>
                     <p className="text-sm font-semibold tracking-[-0.01em] text-[#111014]">
-                      {formatNaira(txn.amount)}
+                      {formatMoney(txn.amount, txn.currency)}
                     </p>
 
                     <p className="mt-0.5 text-[9px] uppercase tracking-[0.1em] text-black/25">
@@ -108,7 +108,7 @@ export default function AdminTransactionsTable({
 
                   <div>
                     <p className="text-sm font-medium text-black/60">
-                      {formatNaira(txn.platformFee)}
+                      {formatMoney(txn.platformFee, txn.currency)}
                     </p>
 
                     <div className="mt-1 flex items-center gap-1">
@@ -214,7 +214,7 @@ export default function AdminTransactionsTable({
                 </p>
 
                 <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-[#111014]">
-                  {formatNaira(txn.amount)}
+                  {formatMoney(txn.amount, txn.currency)}
                 </p>
               </div>
 
@@ -234,9 +234,7 @@ export default function AdminTransactionsTable({
                   </div>
 
                   <p className="mt-1 text-sm font-semibold text-[#111014]">
-                    {formatNaira(
-                      txn.platformFee
-                    )}
+                    {formatMoney(txn.platformFee, txn.currency)}
                   </p>
                 </div>
 

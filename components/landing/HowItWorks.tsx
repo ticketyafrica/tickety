@@ -171,12 +171,12 @@ function CheckoutPreview() {
 
           <div className="flex items-center justify-between text-[10px] text-white/50">
             <span>Service fee</span>
-            <span>₦1,200</span>
+            <span>₦1,250</span>
           </div>
 
           <div className="flex items-center justify-between border-t border-white/10 pt-3 text-[12px] font-semibold text-white">
             <span>Total</span>
-            <span>₦26,200</span>
+            <span>₦26,250</span>
           </div>
         </div>
 

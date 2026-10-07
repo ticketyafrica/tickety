@@ -5,7 +5,7 @@ import OrganiserNav from "@/components/organiser/OrganiserNav";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { getContactsForOrganiser } from "@/lib/data";
-import { formatNaira } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 import { Download } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -184,9 +184,7 @@ export default async function OrganiserContactsPage() {
 
                       {/* Most recent amount */}
                       <td className="px-4 py-3 text-ink">
-                        {formatNaira(
-                          contact.amountPaid
-                        )}
+                        {formatMoney(contact.amountPaid, contact.currency)}
                       </td>
 
                       {/* Payment status */}

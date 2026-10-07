@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
@@ -177,6 +178,7 @@ export async function POST(request: Request) {
           },
         });
 
+        await recordAudit({ action: "staff.invitation_accepted", actorId: user.id, actorName: user.name, entityType: "event", entityId: invitation.eventId, summary: "Accepted event staff invitation", dedupeKey: `staff-accepted/${invitation.id}` }, tx);
         return {
           userId: user.id,
           email: user.email,

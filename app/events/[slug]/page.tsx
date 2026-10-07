@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/currency";
 import { notFound } from "next/navigation";
 import { getEventBySlug } from "@/lib/data";
 import { formatEventDate } from "@/lib/utils";
@@ -373,9 +374,7 @@ export default async function EventPage({
               <p className="mt-0.5 text-[17px] font-semibold tracking-[-0.04em] text-zinc-950">
                 {ticket.price === 0
                   ? "Free"
-                  : `₦${ticket.price.toLocaleString(
-                      "en-NG"
-                    )}`}
+                  : formatMoney(ticket.price, event.currency)}
               </p>
             </div>
           </div>

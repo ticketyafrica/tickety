@@ -37,6 +37,7 @@ type QuestionDraft = {
 };
 
 type EventData = {
+  currency?: "NGN" | "USD";
   id: string;
   title: string;
   venue: string;
@@ -469,11 +470,12 @@ export default function EditEventForm({
                   />
                 </Field>
 
-                <Field label="Price · NGN">
+                <Field label={`Price · ${event.currency ?? "NGN"}`}>
                   <input
                     required
                     type="number"
                     min={0}
+                    step="0.01"
                     value={ticket.price}
                     onChange={(e) =>
                       updateTicket(index, "price", e.target.value)

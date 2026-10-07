@@ -1,5 +1,6 @@
 "use client";
 
+import type { Currency } from "@/lib/currency";
 import { useState } from "react";
 import {
   AlertCircle,
@@ -52,6 +53,7 @@ export default function EventForm() {
   const [tags, setTags] = useState("");
   const [refundPolicy, setRefundPolicy] = useState("");
   const [minAge, setMinAge] = useState("");
+  const [currency, setCurrency] = useState<Currency>("NGN");
   const [isFree, setIsFree] = useState(false);
   const [freeCapacity, setFreeCapacity] = useState("100");
 
@@ -153,7 +155,7 @@ export default function EventForm() {
 
   try {
     const res = await fetch(
-      "/api/organiser/payout",
+      `/api/organiser/payout?currency=${currency}`,
       {
         method: "GET",
         cache: "no-store",
@@ -235,7 +237,7 @@ export default function EventForm() {
         setStatus("idle");
         setShowPayoutNotice(true);
         setErrorMessage(
-          "Please add your bank account details before publishing a paid event. Tickety needs this to send your ticket-sale proceeds to you."
+          "Please connect a payout account in the selected ticket currency before publishing a paid event."
         );
         return;
       }
@@ -265,6 +267,7 @@ export default function EventForm() {
           minAge,
           isFree,
           freeCapacity,
+          currency,
           ticketTypes,
           customQuestions: questions.filter(
             (q) => q.label.trim() !== ""
@@ -937,7 +940,7 @@ export default function EventForm() {
               </span>
 
               <span className={tableLabel}>
-                Price · NGN
+                Price · {currency}
               </span>
 
               <span className={tableLabel}>
@@ -948,6 +951,17 @@ export default function EventForm() {
             </div>
 
             <div className="space-y-3">
+              <div className="mb-5">
+                <label htmlFor="event-currency" className="mb-2 block text-sm font-medium">Ticket currency</label>
+                <select id="event-currency" value={currency} onChange={(e) => setCurrency(e.target.value as Currency)} className={ticketInput}>
+                  <option value="NGN">Nigerian naira (NGN)</option>
+                  <option value="USD">US dollars (USD)</option>
+                </select>
+                <p className="mt-2 text-xs leading-5 text-black/50">
+                  Ticket prices and payouts use this currency. It cannot be changed after publishing.
+                  {currency === "USD" && " USD sales require a connected USD payout account. Service fee: 5%, capped at $5 per order."}
+                </p>
+              </div>
               {ticketTypes.map(
                 (ticket, index) => (
                   <div
@@ -1003,7 +1017,7 @@ export default function EventForm() {
                             mobileLabel
                           }
                         >
-                          Price · NGN
+                          Price · {currency}
                         </label>
 
                         <div className="relative">
@@ -1019,12 +1033,13 @@ export default function EventForm() {
                               text-black/30
                             "
                           >
-                            ₦
+                            {currency === "USD" ? "$" : "₦"}
                           </span>
 
                           <input
                             type="number"
                             min={0}
+                            step="0.01"
                             value={
                               ticket.price
                             }
@@ -1035,7 +1050,7 @@ export default function EventForm() {
                                 e.target.value
                               )
                             }
-                            placeholder="5,000"
+                            placeholder={currency === "USD" ? "20.00" : "5,000"}
                             className={`${ticketInput} pl-9`}
                           />
                         </div>

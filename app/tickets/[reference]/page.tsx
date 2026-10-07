@@ -11,8 +11,9 @@ import {
   ShieldCheck,
   Ticket,
 } from "lucide-react";
+import { formatMoney } from "@/lib/currency";
 import { prisma } from "@/lib/db";
-import { formatNaira, formatEventDate } from "@/lib/utils";
+import { formatEventDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -79,7 +80,7 @@ export default async function TicketPage({
   );
 
   const totalAmount = order.items.reduce(
-    (sum, item) => sum + item.unitPrice * item.quantity,
+    (sum, item) => sum + Number(item.unitPrice) * item.quantity,
     0
   );
 
@@ -225,7 +226,7 @@ export default async function TicketPage({
                 value={
                   totalAmount === 0
                     ? "Free"
-                    : formatNaira(totalAmount)
+                    : formatMoney(Number(totalAmount), order.currency)
                 }
               />
             </div>

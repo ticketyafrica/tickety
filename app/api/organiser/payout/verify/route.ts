@@ -1,3 +1,4 @@
+import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 
@@ -37,6 +38,11 @@ export async function POST(request: NextRequest) {
           status: 403,
         }
       );
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { payoutPinHash: true } });
+    if (!user?.payoutPinHash) {
+      return NextResponse.json({ error: "Set your payout PIN before adding bank details." }, { status: 409 });
     }
 
     const body = await request.json();

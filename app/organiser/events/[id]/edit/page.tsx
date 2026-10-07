@@ -81,6 +81,7 @@ export default async function EditEventPage({
           <EditEventForm
             event={{
               id: event.id,
+              currency: event.currency,
               title: event.title,
               venue: event.venue,
               state: event.state,

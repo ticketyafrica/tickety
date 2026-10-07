@@ -1,3 +1,4 @@
+import { servicesWhatsAppUrl } from "@/lib/services";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -19,7 +20,8 @@ const columns = [
     title: "Company",
     links: [
       
-      { label: "Contact", href: "#" },
+      { label: "What we offer", href: "/what-we-offer" },
+      { label: "Contact", href: servicesWhatsAppUrl() },
     ],
   },
 ];
@@ -138,8 +140,10 @@ export default function Footer() {
               </a>
 
               <a
-                href="#"
-                aria-label="WhatsApp"
+                href={servicesWhatsAppUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Contact Tickety on WhatsApp"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.025] text-white/35 transition-all hover:border-[#25D366]/20 hover:bg-[#25D366]/[0.08] hover:text-[#25D366]"
               >
                 <MessageCircle size={15} />

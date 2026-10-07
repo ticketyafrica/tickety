@@ -20,6 +20,8 @@ import {
   Ticket,
 } from "lucide-react";
 
+import { calculateTicketServiceFee } from "@/lib/constants";
+
 type BookingStep = "tickets" | "checkout" | "confirmed";
 
 const EVENT = {
@@ -29,7 +31,6 @@ const EVENT = {
   venue: "Victoria Island, Lagos",
   ticketName: "General Admission",
   price: 12500,
-  serviceFee: 1200,
 };
 
 function formatNaira(amount: number) {
@@ -169,8 +170,8 @@ export default function HeroConversation() {
   const [autoPlay, setAutoPlay] = useState(true);
 
   const ticketTotal = EVENT.price * quantity;
-  const grandTotal =
-    ticketTotal + EVENT.serviceFee;
+  const serviceFee = calculateTicketServiceFee(ticketTotal);
+  const grandTotal = ticketTotal + serviceFee;
 
   useEffect(() => {
     if (!autoPlay) return;
@@ -355,7 +356,7 @@ export default function HeroConversation() {
 
               <PriceRow
                 label="Service fee"
-                value={formatNaira(EVENT.serviceFee)}
+                value={formatNaira(serviceFee)}
               />
 
               <div className="border-t border-zinc-100 pt-3">
@@ -446,7 +447,7 @@ export default function HeroConversation() {
 
               <PriceRow
                 label="Service fee"
-                value={formatNaira(EVENT.serviceFee)}
+                value={formatNaira(serviceFee)}
               />
 
               <div className="border-t border-zinc-100 pt-3">

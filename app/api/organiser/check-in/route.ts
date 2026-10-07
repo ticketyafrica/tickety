@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
@@ -520,6 +521,8 @@ export async function POST(
               ticketType: true,
             },
           });
+
+        await recordAudit({ action: "ticket.checked_in", actorId: session.user.id, actorName: session.user.name || "Event staff", entityType: attendee.orderId ? "order" : "event", entityId: attendee.orderId || event.id, summary: `Checked in ticket ${attendee.ticketId}`, dedupeKey: `check-in/${attendee.id}` }, tx);
 
         return {
           kind: "checked_in" as const,

@@ -1,3 +1,5 @@
+import { roundMoney, toMinorUnits } from "@/lib/currency";
+import { getSubaccount } from "@/lib/paystack";
 import { eventInstant } from "@/lib/email/schedule";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
@@ -5,8 +7,8 @@ import { prisma } from "@/lib/db";
 import { initializeTransaction } from "@/lib/paystack";
 import { completeFreeTicketOrder } from "@/lib/ticket-orders";
 import {
-  TICKET_SERVICE_FEE_NAIRA,
-  TICKET_COMMISSION_PERCENT,
+  calculateTicketServiceFee,
+  calculateTicketCommission,
 } from "@/lib/constants";
 
 type CheckoutTicket = {
@@ -297,6 +299,7 @@ export async function POST(request: NextRequest) {
       organiser: {
         select: {
           paystackSubaccountCode: true,
+          paystackUsdSubaccountCode: true,
         },
       },
     },
@@ -466,7 +469,7 @@ export async function POST(request: NextRequest) {
     }
 
     ticketAmount +=
-      ticketType.price * selection.quantity;
+      Number(ticketType.price) * selection.quantity;
 
     return {
       ticketTypeId: ticketType.id,
@@ -480,7 +483,7 @@ export async function POST(request: NextRequest) {
    * PAYMENT BREAKDOWN
    *
    * Customer pays:
-   *   ticket amount + ₦1,200 service fee
+   *   ticket amount + 5% service fee (capped at ₦2,500 / $5)
    *
    * Organiser receives:
    *   90% of ticket amount
@@ -492,24 +495,19 @@ export async function POST(request: NextRequest) {
    * ---------------------------------------------------------------
    */
 
-  const serviceFee =
-    ticketAmount > 0
-      ? TICKET_SERVICE_FEE_NAIRA
-      : 0;
+  ticketAmount = roundMoney(ticketAmount);
+  const serviceFee = calculateTicketServiceFee(ticketAmount, event.currency);
 
-  const commissionAmount =
-    Math.round(
-      (ticketAmount * TICKET_COMMISSION_PERCENT) / 100
-    );
+  const commissionAmount = calculateTicketCommission(ticketAmount, event.currency);
 
   const organiserAmount =
-    ticketAmount - commissionAmount;
+    roundMoney(ticketAmount - commissionAmount);
 
   const platformFee =
-    commissionAmount + serviceFee;
+    roundMoney(commissionAmount + serviceFee);
 
   const totalAmount =
-    ticketAmount + serviceFee;
+    roundMoney(ticketAmount + serviceFee);
 
   const reference = createOrderReference();
 
@@ -587,6 +585,7 @@ export async function POST(request: NextRequest) {
             data: {
               reference,
               paystackRef: `FREE-${reference}`,
+              currency: event.currency,
 
               name,
               email,
@@ -595,6 +594,7 @@ export async function POST(request: NextRequest) {
               amount: 0,
               ticketAmount: 0,
               serviceFee: 0,
+              paystackFee: 0,
               organiserAmount: 0,
               commissionAmount: 0,
               platformFee: 0,
@@ -721,13 +721,15 @@ export async function POST(request: NextRequest) {
    */
 
   const organiserSubaccountCode =
-    event.organiser.paystackSubaccountCode?.trim();
+    (event.currency === "USD"
+      ? event.organiser.paystackUsdSubaccountCode
+      : event.organiser.paystackSubaccountCode)?.trim();
 
   if (!organiserSubaccountCode) {
     return NextResponse.json(
       {
         error:
-          "This event is not ready to accept paid tickets. The organiser needs to connect a payout account first.",
+          `This event is not ready to accept paid tickets. The organiser needs to connect a ${event.currency} payout account first.`,
       },
       {
         status: 409,
@@ -740,6 +742,23 @@ export async function POST(request: NextRequest) {
    * PAID CHECKOUT
    * ---------------------------------------------------------------
    */
+
+  if (event.currency === "USD") {
+    if (process.env.PAYSTACK_USD_ENABLED !== "true") {
+      return NextResponse.json({ error: "USD payments are not available yet." }, { status: 409 });
+    }
+    if (toMinorUnits(totalAmount) < 200) {
+      return NextResponse.json({ error: "Paystack requires a USD payment total of at least $2.00. Please select more tickets." }, { status: 400 });
+    }
+    try {
+      const subaccount = await getSubaccount(organiserSubaccountCode);
+      if (subaccount.currency !== "USD" || subaccount.active === false) {
+        return NextResponse.json({ error: "The organiser needs an active USD payout account." }, { status: 409 });
+      }
+    } catch {
+      return NextResponse.json({ error: "Unable to confirm USD payouts. Please try again later." }, { status: 502 });
+    }
+  }
 
   const expiresAt = new Date(
     Date.now() +
@@ -923,6 +942,7 @@ export async function POST(request: NextRequest) {
             reference,
 
             paystackRef: `PENDING-${reference}`,
+            currency: event.currency,
 
             name,
             email,
@@ -941,7 +961,7 @@ export async function POST(request: NextRequest) {
             ticketAmount,
 
             /*
-             * ₦1,200 service fee paid by the customer.
+             * 5% service fee, capped at ₦2,500 / $5, paid by the customer.
              */
             serviceFee,
 
@@ -996,6 +1016,7 @@ export async function POST(request: NextRequest) {
     try {
       payment = await initializeTransaction({
         email,
+        currency: event.currency,
 
         /*
          * Customer pays:
@@ -1003,7 +1024,7 @@ export async function POST(request: NextRequest) {
          * ticketAmount + serviceFee
          */
         amountKobo:
-          totalAmount * 100,
+          toMinorUnits(totalAmount),
 
         /*
          * This must point to the API callback route that
@@ -1023,15 +1044,15 @@ export async function POST(request: NextRequest) {
          * Example:
          *
          * Ticket amount:       ₦50,000
-         * Service fee:          ₦1,200
-         * Customer pays:       ₦51,200
+         * Service fee:          ₦2,500
+         * Customer pays:       ₦52,500
          *
          * Organiser share:     ₦45,000
-         * Tickety remainder:    ₦6,200
+         * Tickety remainder:    ₦7,500
          *
          * The remainder contains:
          * - ₦5,000 commission
-         * - ₦1,200 service fee
+         * - ₦2,500 service fee
          *
          * bearer_type "account" means the main Tickety account
          * bears Paystack's transaction processing fee.
@@ -1039,6 +1060,7 @@ export async function POST(request: NextRequest) {
          */
 
         split: {
+          currency: event.currency,
           type: "flat",
           bearer_type: "account",
 
@@ -1051,7 +1073,7 @@ export async function POST(request: NextRequest) {
                * Paystack expects the share in kobo.
                */
               share:
-                organiserAmount * 100,
+                toMinorUnits(organiserAmount),
             },
           ],
         },

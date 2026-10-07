@@ -18,6 +18,7 @@ export async function GET() {
     { key: "email", header: "Email" },
     { key: "ticketType", header: "Ticket Type" },
     { key: "amountPaid", header: "Amount Paid" },
+    { key: "currency", header: "Currency" },
     { key: "paymentStatus", header: "Payment Status" },
     { key: "purchaseDate", header: "Date" },
     { key: "answers", header: "Question Answers" },

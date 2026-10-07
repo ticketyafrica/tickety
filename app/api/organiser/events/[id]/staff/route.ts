@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes, createHash } from "crypto";
 import { getServerSession } from "next-auth";
@@ -314,6 +315,7 @@ export async function POST(
         data: { email, eventId: event.id, invitedById: session.user.id, tokenHash, expiresAt },
         select: { id: true, email: true, expiresAt: true },
       });
+      await recordAudit({ action: "staff.invited", actorId: session.user.id, actorName: session.user.name || "Organiser", entityType: "event", entityId: event.id, summary: "Invited event check-in staff", metadata: { targetId: created.id }, dedupeKey: `staff-invited/${created.id}` }, tx);
       await enqueueEmail(tx, { dedupeKey: `staff-invite/${created.id}`, kind: "staff_invitation", recipient: email, eventId: event.id, invitationId: created.id, expiresAt, context: { inviteUrl: invitationUrl } });
       return created;
     });
@@ -416,10 +418,9 @@ export async function DELETE(
       );
     }
 
-    await prisma.eventStaff.delete({
-      where: {
-        id: assignment.id,
-      },
+    await prisma.$transaction(async tx => {
+      await tx.eventStaff.delete({ where: { id: assignment.id } });
+      await recordAudit({ action: "staff.removed", actorId: session.user.id, actorName: session.user.name || "Organiser", entityType: "event", entityId: event.id, summary: "Removed event staff access", metadata: { targetId: assignment.userId } }, tx);
     });
 
     return NextResponse.json({

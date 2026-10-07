@@ -1,3 +1,4 @@
+import { isValidPrice } from "@/lib/currency";
 import { eventInstant } from "@/lib/email/schedule";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -69,6 +70,7 @@ export async function PUT(
       id: true,
       endTime: true,
       timezone: true,
+      currency: true,
     },
   });
 
@@ -111,6 +113,10 @@ export async function PUT(
       return NextResponse.json({ error: "Provide valid start and end times and an event timezone. End time must be after start time." }, { status: 400 });
     }
 
+    if (body.currency !== undefined && body.currency !== event.currency) {
+      return NextResponse.json({ error: "An event’s currency cannot be changed. Create a new event to use another currency." }, { status: 400 });
+    }
+
     const tags =
       typeof body.tags === "string"
         ? body.tags
@@ -133,7 +139,7 @@ export async function PUT(
             }) => ({
               id: ticket.id,
               name: String(ticket.name ?? "").trim(),
-              price: Number(ticket.price) || 0,
+              price: Number(ticket.price),
               quantityTotal:
                 Number(
                   ticket.quantityTotal ?? ticket.quantity
@@ -147,6 +153,10 @@ export async function PUT(
             }) => ticket.name && ticket.quantityTotal >= 0
           )
       : [];
+
+    if (ticketTypes.some((ticket: { price: number }) => !isValidPrice(ticket.price))) {
+      return NextResponse.json({ error: "Ticket prices must be valid amounts with at most two decimal places." }, { status: 400 });
+    }
 
     if (ticketTypes.length === 0) {
       return NextResponse.json(

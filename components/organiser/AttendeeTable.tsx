@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Attendee } from "@/lib/types";
-import { formatNaira } from "@/lib/utils";
+import { formatMoney, formatCurrencyTotals } from "@/lib/currency";
 import {
   ArrowUpDown,
   Check,
@@ -58,11 +58,6 @@ export default function AttendeeTable({
     (a) => a.paymentStatus === "pending"
   ).length;
 
-  const revenue = attendees.reduce(
-    (sum, attendee) =>
-      sum + attendee.amountPaid,
-    0
-  );
 
   return (
     <div className="relative overflow-hidden rounded-[30px] border border-black/[0.07] bg-[#0B0910] shadow-[0_30px_80px_rgba(0,0,0,0.14)]">
@@ -202,7 +197,7 @@ export default function AttendeeTable({
 
         <Stat
           label="Revenue"
-          value={formatNaira(revenue)}
+          value={formatCurrencyTotals(attendees.filter((a) => a.paymentStatus === "paid").map((a) => ({ amount: a.amountPaid, currency: a.currency })))}
         />
 
         <Stat
@@ -332,9 +327,7 @@ export default function AttendeeTable({
                 ================================================= */}
                 <td className="px-5 py-4">
                   <p className="text-xs font-semibold text-white">
-                    {formatNaira(
-                      attendee.amountPaid
-                    )}
+                    {formatMoney(attendee.amountPaid, attendee.currency)}
                   </p>
                 </td>
 

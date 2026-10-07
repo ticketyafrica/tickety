@@ -22,7 +22,7 @@ export default function ConditionalSiteChrome({
    */
   const isStaffRoute = pathname?.startsWith("/staff");
 
-  if (isStaffRoute) {
+  if (isStaffRoute || pathname === "/admin" || pathname.startsWith("/admin/")) {
     return null;
   }
 

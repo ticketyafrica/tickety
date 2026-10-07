@@ -1,3 +1,5 @@
+import { paystackFeeAmount } from "@/lib/payment-fees";
+import { LISTING_FEE_KOBO } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyTransaction } from "@/lib/paystack";
 import { markListingFeePaid } from "@/lib/data";
@@ -12,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const verification = await verifyTransaction(reference);
 
-    if (verification.status !== "success") {
+    if (verification.status !== "success" || verification.amount !== LISTING_FEE_KOBO || verification.currency !== "NGN" || verification.metadata?.paymentType !== "EVENT_LISTING_FEE") {
       return NextResponse.redirect(new URL("/organiser/dashboard?fee=failed", request.url));
     }
 
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/organiser/dashboard?fee=missing_event", request.url));
     }
 
-    await markListingFeePaid(eventId, reference);
+    await markListingFeePaid(eventId, reference, paystackFeeAmount(verification.fees, verification.amount));
 
     return NextResponse.redirect(new URL(`/organiser/events/${eventId}?fee=success`, request.url));
   } catch (err) {

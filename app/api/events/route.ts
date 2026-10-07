@@ -1,3 +1,4 @@
+import { isCurrency, isValidPrice } from "@/lib/currency";
 import { eventInstant, DEFAULT_EVENT_TIMEZONE } from "@/lib/email/schedule";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -63,6 +64,17 @@ export async function POST(request: NextRequest) {
    * REQUIRED FIELDS
    * ------------------------------------------------------------
    */
+
+  const currency = body.currency ?? "NGN";
+  if (!isCurrency(currency)) {
+    return NextResponse.json({ error: "Choose NGN or USD as the event currency." }, { status: 400 });
+  }
+  if (!body.isFree && currency === "USD") {
+    const organiser = await prisma.user.findUnique({ where: { id: session.user.id } });
+    if (process.env.PAYSTACK_USD_ENABLED !== "true" || !organiser?.paystackUsdSubaccountCode) {
+      return NextResponse.json({ error: "USD sales require USD payments to be enabled and a connected USD payout account." }, { status: 409 });
+    }
+  }
 
   const required = [
     "title",
@@ -183,6 +195,11 @@ export async function POST(request: NextRequest) {
    * ------------------------------------------------------------
    */
 
+  if (!isFree && Array.isArray(body.ticketTypes) &&
+      body.ticketTypes.some((ticket: { price?: unknown } | null) => !isValidPrice(Number(ticket?.price)))) {
+    return NextResponse.json({ error: "Ticket prices must be valid amounts with at most two decimal places." }, { status: 400 });
+  }
+
   const ticketTypes = isFree
     ? [
         {
@@ -203,7 +220,7 @@ export async function POST(request: NextRequest) {
               quantity?: string | number;
             }) => ({
               name: String(ticket.name ?? "").trim(),
-              price: Number(ticket.price) || 0,
+              price: Number(ticket.price),
               quantityTotal: Number(ticket.quantity) || 0,
             })
           )
@@ -218,6 +235,10 @@ export async function POST(request: NextRequest) {
               ticket.price >= 0
           )
       : [];
+
+  if (ticketTypes.some((ticket: { price: number }) => !isValidPrice(ticket.price))) {
+    return NextResponse.json({ error: "Ticket prices must be valid amounts with at most two decimal places." }, { status: 400 });
+  }
 
   if (ticketTypes.length === 0) {
     return NextResponse.json(
@@ -258,6 +279,7 @@ export async function POST(request: NextRequest) {
 
   try {
     event = await createEvent({
+      currency,
       title: String(body.title).trim(),
       slug,
       description: String(body.description).trim(),

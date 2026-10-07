@@ -5,7 +5,8 @@ import OrganiserNav from "@/components/organiser/OrganiserNav";
 import StatCard from "@/components/ui/StatCard";
 import AttendeeTable from "@/components/organiser/AttendeeTable";
 import { getEventById, getAttendeesForEventId } from "@/lib/data";
-import { formatNaira, ticketsLeft } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
+import { ticketsLeft } from "@/lib/utils";
 import { Ticket, Wallet, QrCode, Armchair } from "lucide-react";
 import Link from "next/link";
 import EventShareLink from "@/components/organiser/EventShareLink";
@@ -67,7 +68,7 @@ export default async function OrganiserEventDashboardPage({
         </div>
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Tickets sold" value={ticketsSold.toString()} icon={<Ticket size={18} />} />
-          <StatCard label="Gross revenue" value={formatNaira(gross)} icon={<Wallet size={18} />} />
+          <StatCard label="Gross revenue" value={formatMoney(gross, event.currency)} icon={<Wallet size={18} />} />
           <StatCard label="Checked in" value={`${checkInRate}%`} icon={<QrCode size={18} />} />
           {tablesLeft !== null && (
             <StatCard label="Tables left" value={tablesLeft.toString()} icon={<Armchair size={18} />} />

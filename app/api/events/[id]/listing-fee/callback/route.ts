@@ -1,3 +1,5 @@
+import { paystackFeeAmount } from "@/lib/payment-fees";
+import { LISTING_FEE_KOBO } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 
 import { verifyTransaction } from "@/lib/paystack";
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     const payment = await verifyTransaction(reference);
 
-    if (!payment || payment.status !== "success") {
+    if (!payment || payment.status !== "success" || payment.amount !== LISTING_FEE_KOBO || payment.currency !== "NGN" || payment.metadata?.paymentType !== "EVENT_LISTING_FEE") {
       return NextResponse.redirect(
         new URL(
           `/organiser/dashboard?payment=failed&reference=${encodeURIComponent(
@@ -70,7 +72,8 @@ export async function GET(request: NextRequest) {
 
     await markListingFeePaid(
       eventId,
-      reference
+      reference,
+      paystackFeeAmount(payment.fees, payment.amount)
     );
 
     // --------------------------------------------------

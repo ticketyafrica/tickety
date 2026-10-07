@@ -28,7 +28,11 @@ test("paid and free confirmed bookings queue customer, organiser, configured adm
     const tx = {
       order: { findUniqueOrThrow: async () => ({ id: "order-1", status: "paid", email: "Guest@Example.com", eventId: event.id, event, attendees: [{ id: "ticket-1" }] }) },
       eventEmailPreference: { upsert: async () => preference, findUniqueOrThrow: async () => preference },
-      emailNotification: { upsert: async (args: any) => { if (!records.has(args.where.dedupeKey)) records.set(args.where.dedupeKey, args.create); return records.get(args.where.dedupeKey); } },
+      emailNotification: { createMany: async (args: any) => {
+        assert.equal(args.skipDuplicates, true);
+        for (const job of args.data) if (!records.has(job.dedupeKey)) records.set(job.dedupeKey, job);
+        return { count: args.data.length };
+      } },
     } as unknown as Prisma.TransactionClient;
     await enqueueBookingEmails(tx, "order-1");
     await enqueueBookingEmails(tx, "order-1");
@@ -37,6 +41,19 @@ test("paid and free confirmed bookings queue customer, organiser, configured adm
     assert.deepEqual(bookingJobs.map((job) => job.recipient), ["guest@example.com", "organiser@example.com", "hello@tickety.africa"]);
     assert.equal([...records.values()].filter((job) => job.preferenceId).length, 7);
   } finally { if (previous === undefined) delete process.env.ADMIN_NOTIFICATION_EMAILS; else process.env.ADMIN_NOTIFICATION_EMAILS = previous; }
+});
+
+test("booking emails use one batch and preserve an existing reminder unsubscribe", async () => {
+  const batches: Prisma.EmailNotificationCreateManyInput[][] = [];
+  const tx = {
+    order: { findUniqueOrThrow: async () => ({ id: "order-1", status: "paid", email: "Guest@Example.com", eventId: event.id, event, attendees: [{ id: "ticket-1" }] }) },
+    eventEmailPreference: { upsert: async () => ({ ...preference, unsubscribedAt: new Date() }) },
+    emailNotification: { createMany: async (args: any) => { batches.push(args.data); return { count: args.data.length }; } },
+  } as unknown as Prisma.TransactionClient;
+  await enqueueBookingEmails(tx, "order-1");
+  assert.equal(batches.length, 1);
+  assert.ok(batches[0].some((job) => job.kind === "booking_customer"));
+  assert.ok(batches[0].every((job) => job.kind.startsWith("booking_")));
 });
 
 test("unconfirmed or unsubscribed recipients cannot be scheduled", async () => {

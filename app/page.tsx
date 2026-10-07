@@ -1,3 +1,4 @@
+import ServicesIntro from "@/components/landing/ServicesIntro";
 import Hero from "@/components/landing/Hero";
 import HowItWorks from "@/components/landing/HowItWorks";
 import HybridExplainer from "@/components/landing/HybridExplainer";
@@ -10,6 +11,7 @@ export default function HomePage() {
     <>
       <Hero />
       <HowItWorks />
+      <ServicesIntro />
       <FeaturedEvents />
       <HybridExplainer />
       <ForOrganisers />

@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/audit";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import bcrypt from "bcryptjs";
@@ -176,6 +177,8 @@ export async function POST(
             update: {},
           });
 
+          await recordAudit({ action: "staff.invitation_accepted", actorId: existingUser.id, actorName: session.user.name || "Event staff", entityType: "event", entityId: invitation.eventId, summary: "Accepted event staff invitation", dedupeKey: `staff-accepted/${invitation.id}` }, tx);
+
           await tx.staffInvitation.update({
             where: {
               id: invitation.id,
@@ -279,6 +282,7 @@ export async function POST(
           },
         });
 
+        await recordAudit({ action: "staff.invitation_accepted", actorId: user.id, actorName: user.name, entityType: "event", entityId: invitation.eventId, summary: "Created staff account and accepted invitation", dedupeKey: `staff-accepted/${invitation.id}` }, tx);
         return user;
       },
       {

@@ -1,3 +1,4 @@
+import type { Currency } from "./currency";
 export type EventCategory =
   | "Music"
   | "Comedy"
@@ -24,6 +25,7 @@ export interface CustomQuestion {
 }
 
 export interface EventItem {
+  currency?: Currency;
   id: string;
   slug: string;
   title: string;
@@ -70,6 +72,7 @@ export type TicketStatus =
   | "cancelled";
 
 export interface Attendee {
+  currency?: Currency;
   id: string;
   name: string;
   email: string;
@@ -92,6 +95,7 @@ export interface Attendee {
 }
 
 export interface Transaction {
+  currency?: Currency;
   id: string;
   eventTitle: string;
   organiserName: string;
@@ -102,6 +106,7 @@ export interface Transaction {
 }
 
 export interface AdminEventSummary {
+  currency?: Currency;
   id: string;
   title: string;
   organiserName: string;

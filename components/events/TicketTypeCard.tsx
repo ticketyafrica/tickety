@@ -1,6 +1,6 @@
+import { formatMoney } from "@/lib/currency";
 import { TicketType } from "@/lib/types";
 import {
-  formatNaira,
   ticketsLeft,
 } from "@/lib/utils";
 import {
@@ -12,9 +12,12 @@ import {
 
 export default function TicketTypeCard({
   ticket,
+  currency = "NGN",
 }: {
   ticket: TicketType;
+  currency?: "NGN" | "USD";
 }) {
+  const formatPrice = (amount: number) => formatMoney(amount, currency);
   const left = ticketsLeft(
     ticket.quantityTotal,
     ticket.quantitySold
@@ -129,7 +132,7 @@ export default function TicketTypeCard({
             </p>
 
             <p className="mt-0.5 font-display text-base font-semibold tracking-[-0.025em] text-[#111014] sm:text-lg">
-              {formatNaira(ticket.price)}
+              {formatPrice(ticket.price)}
             </p>
           </div>
 

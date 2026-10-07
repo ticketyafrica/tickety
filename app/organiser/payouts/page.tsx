@@ -1,3 +1,4 @@
+import PayoutPinSetup from "@/components/organiser/PayoutPinSetup";
 import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import OrganiserNav from "@/components/organiser/OrganiserNav";
+import PayoutAccountManager from "@/components/organiser/PayoutAccountManager";
 import PayoutSetupForm from "@/components/organiser/PayoutSetupForm";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,8 @@ export default async function OrganiserPayoutsPage() {
       name: true,
       email: true,
       paystackSubaccountCode: true,
+      payoutPinHash: true,
+      paystackUsdSubaccountCode: true,
     },
   });
 
@@ -67,11 +71,25 @@ export default async function OrganiserPayoutsPage() {
           </div>
         </section>
 
+        <section className="mx-auto max-w-7xl px-5 pt-8 sm:px-8 lg:px-10">
+          <div className="rounded-[24px] border border-black/[0.07] bg-white p-6">
+            <h2 className="text-lg font-semibold">US dollar payouts</h2>
+            <p className="mt-2 text-sm leading-6 text-black/50">
+              {user.paystackUsdSubaccountCode && process.env.PAYSTACK_USD_ENABLED === "true"
+                ? "Your USD payout account is connected. You can publish dollar-priced events."
+                : "Dollar sales need a verified USD payout account, separate from your naira account. Contact Tickety support to arrange USD payout setup before publishing dollar-priced tickets."}
+            </p>
+            {!user.paystackUsdSubaccountCode && <a href="mailto:experience@tickety.africa?subject=USD%20payout%20setup" className="mt-3 inline-block text-sm font-semibold text-violet-700">Request USD payout setup →</a>}
+          </div>
+        </section>
+
         <section className="mx-auto max-w-7xl px-5 py-8 sm:px-8 sm:py-10 lg:px-10 lg:py-12">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="overflow-hidden rounded-[24px] border border-black/[0.07] bg-white">
-              {isConnected ? (
-                <ConnectedState
+              {!user.payoutPinHash ? (
+                <PayoutPinSetup existingAccount={isConnected} />
+              ) : isConnected ? (
+                <PayoutAccountManager
                   name={user.name}
                   email={user.email}
                 />
@@ -118,61 +136,6 @@ export default async function OrganiserPayoutsPage() {
   );
 }
 
-function ConnectedState({
-  name,
-  email,
-}: {
-  name: string;
-  email: string;
-}) {
-  return (
-    <div className="p-6 sm:p-8 lg:p-10">
-      <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#ECFDF3] text-[#16803C]">
-        <CheckCircle2 size={23} strokeWidth={1.8} />
-      </div>
-
-      <p className="mt-6 text-[9px] font-bold uppercase tracking-[0.18em] text-[#16803C]">
-        Payouts connected
-      </p>
-
-      <h2 className="mt-2 font-display text-2xl font-semibold tracking-[-0.04em]">
-        Your payout account is ready.
-      </h2>
-
-      <p className="mt-2 max-w-lg text-sm leading-6 text-black/45">
-        Your Paystack payout account is connected and can be used for eligible
-        ticket sales.
-      </p>
-
-      <div className="mt-8 border-t border-black/[0.07] pt-6">
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Detail
-            label="Organiser"
-            value={name}
-          />
-
-          <Detail
-            label="Email"
-            value={email}
-          />
-        </div>
-      </div>
-
-      <div className="mt-8 rounded-[16px] border border-black/[0.06] bg-[#FAFAF9] p-4">
-        <p className="text-xs font-semibold text-[#111014]">
-          Your payout details are managed securely through Paystack.
-        </p>
-
-        <p className="mt-1.5 text-xs leading-5 text-black/40">
-          If you need to change the connected bank account, contact Tickety
-          support so the existing payout connection can be reviewed before a
-          new one is created.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function InfoItem({
   icon,
   title,
@@ -195,26 +158,6 @@ function InfoItem({
           {description}
         </p>
       </div>
-    </div>
-  );
-}
-
-function Detail({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div>
-      <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-black/30">
-        {label}
-      </p>
-
-      <p className="mt-1.5 truncate text-sm font-medium text-[#111014]">
-        {value}
-      </p>
     </div>
   );
 }

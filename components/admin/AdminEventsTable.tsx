@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 import { AdminEventSummary } from "@/lib/types";
-import { formatNaira } from "@/lib/utils";
+import { formatMoney } from "@/lib/currency";
 
 export default function AdminEventsTable({
   events,
@@ -206,9 +206,7 @@ export default function AdminEventsTable({
 
                   <div>
                     <p className="text-sm font-semibold tracking-[-0.01em] text-[#111014]">
-                      {formatNaira(
-                        event.gross
-                      )}
+                      {formatMoney(event.gross, event.currency)}
                     </p>
 
                     <p className="mt-0.5 text-[10px] text-black/25">
@@ -373,7 +371,7 @@ export default function AdminEventsTable({
                 <div className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-[12px] font-bold text-black/25">
-                      ₦
+                      {event.currency === "USD" ? "$" : "₦"}
                     </span>
 
                     <span className="text-[10px] font-medium uppercase tracking-[0.1em] text-black/30">
@@ -382,9 +380,7 @@ export default function AdminEventsTable({
                   </div>
 
                   <p className="mt-1 truncate text-lg font-semibold tracking-[-0.03em] text-[#111014]">
-                    {formatNaira(
-                      event.gross
-                    )}
+                    {formatMoney(event.gross, event.currency)}
                   </p>
                 </div>
               </div>

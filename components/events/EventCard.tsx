@@ -1,8 +1,8 @@
+import { formatMoney } from "@/lib/currency";
 import Link from "next/link";
 import { EventItem } from "@/lib/types";
 import {
   formatEventDate,
-  formatNaira,
   priceFrom,
 } from "@/lib/utils";
 import Badge from "@/components/ui/Badge";
@@ -18,6 +18,7 @@ export default function EventCard({
 }: {
   event: EventItem;
 }) {
+  const formatPrice = (amount: number) => formatMoney(amount, event.currency);
   const from = priceFrom(event.ticketTypes);
 
   const isFree =
@@ -175,7 +176,7 @@ export default function EventCard({
               <p className="mt-1 font-display text-sm font-semibold tracking-[-0.02em] text-[#111014]">
                 {from === 0
                   ? "Free"
-                  : `From ${formatNaira(from)}`}
+                  : `From ${formatPrice(from)}`}
               </p>
             </div>
 

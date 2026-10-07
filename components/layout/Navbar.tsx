@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   ArrowRight,
@@ -20,9 +21,11 @@ import Button from "@/components/ui/Button";
 const publicLinks = [
   { href: "/", label: "Home" },
   { href: "/explore", label: "Explore Events" },
+  { href: "/what-we-offer", label: "What We Offer" },
 ];
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { data: session, status } = useSession();
 
@@ -90,7 +93,7 @@ export default function Navbar() {
             </Link>
 
             {/* Desktop navigation */}
-            <div className="relative hidden flex-1 items-center justify-center md:flex">
+            <div className="relative hidden flex-1 items-center justify-center lg:flex">
               <div
                 className="
                   flex items-center
@@ -104,15 +107,18 @@ export default function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
+                    aria-current={pathname === link.href ? "page" : undefined}
                     className="
                       group relative
                       flex h-10 items-center
                       rounded-full
-                      px-5
+                      px-3 xl:px-5
                       text-[13px]
                       font-medium
                       text-black/50
                       transition-all duration-200
+                      aria-[current=page]:bg-white
+                      aria-[current=page]:text-[#6D28D9]
                       hover:bg-white
                       hover:text-[#111014]
                       hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]
@@ -145,7 +151,7 @@ export default function Navbar() {
                       group relative
                       flex h-10 items-center
                       rounded-full
-                      px-5
+                      px-3 xl:px-5
                       text-[13px]
                       font-medium
                       text-black/50
@@ -182,7 +188,7 @@ export default function Navbar() {
                       group relative
                       flex h-10 items-center
                       rounded-full
-                      px-5
+                      px-3 xl:px-5
                       text-[13px]
                       font-medium
                       text-black/50
@@ -215,7 +221,7 @@ export default function Navbar() {
             </div>
 
             {/* Desktop account actions */}
-            <div className="relative hidden items-center gap-2 md:flex">
+            <div className="relative hidden items-center gap-2 lg:flex">
               {isAuthenticated ? (
                 <>
                   <Link
@@ -302,7 +308,7 @@ export default function Navbar() {
                       flex h-11 items-center gap-2
                       rounded-full
                       bg-[#6D28D9]
-                      px-5
+                      px-3 xl:px-5
                       text-[13px]
                       font-semibold
                       text-white
@@ -346,7 +352,7 @@ export default function Navbar() {
                 shadow-sm
                 transition-all duration-200
                 hover:bg-[#F0EDF5]
-                md:hidden
+                lg:hidden
               "
             >
               {open ? <X size={19} /> : <Menu size={19} />}
@@ -366,7 +372,7 @@ export default function Navbar() {
                 bg-white/[0.97]
                 shadow-[0_18px_55px_rgba(0,0,0,0.14),0_8px_25px_rgba(109,40,217,0.08)]
                 backdrop-blur-2xl
-                md:hidden
+                lg:hidden
               "
             >
               <div className="p-3 sm:p-4">
@@ -394,6 +400,7 @@ export default function Navbar() {
                       <Link
                         key={link.href}
                         href={link.href}
+                        aria-current={pathname === link.href ? "page" : undefined}
                         onClick={closeMenu}
                         className={`
                           group

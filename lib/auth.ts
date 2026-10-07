@@ -1,3 +1,4 @@
+import { recordAudit } from "./audit";
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
@@ -53,6 +54,7 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        await recordAudit({ action: "account.signed_in", actorId: user.id, actorName: user.name, entityType: "user", entityId: user.id, summary: `${user.name} signed in` });
         return {
           id: user.id,
           name: user.name,

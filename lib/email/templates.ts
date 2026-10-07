@@ -1,3 +1,4 @@
+import { Currency, formatMoney } from "../currency";
 import QRCode from "qrcode";
 import { eventInstant, REMINDERS, SchedulableEvent } from "./schedule";
 import type { EmailAttachment, EmailMessage } from "./provider";
@@ -16,7 +17,8 @@ export function escapeHtml(value: unknown): string {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]!));
 }
 
-const money = (amount: number) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount);
+type MoneyValue = number | { toString(): string };
+const money = (amount: MoneyValue, currency: Currency = "NGN") => formatMoney(Number(amount), currency);
 const paragraph = (text: string) => `<p style="margin:0 0 18px;font-size:16px;line-height:26px;color:#64606d">${escapeHtml(text)}</p>`;
 export const button = (label: string, url: string) => `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:26px 0"><tr><td style="border-radius:12px;background:#6D28D9"><a href="${escapeHtml(url)}" style="display:inline-block;padding:15px 24px;font-size:15px;font-weight:700;color:#ffffff;text-decoration:none">${escapeHtml(label)} &rarr;</a></td></tr></table>`;
 
@@ -40,11 +42,11 @@ export function brandedEmail(input: { to: string; subject: string; eyebrow: stri
 }
 
 export type EmailEvent = SchedulableEvent & { id: string; slug: string; title: string; venue: string; state: string; organiser?: { name: string } };
-export type EmailTicket = { ticketId: string; name: string; checkInStatus: boolean; ticketStatus: string; ticketType: { name: string }; amountPaid: number };
+export type EmailTicket = { ticketId: string; name: string; checkInStatus: boolean; ticketStatus: string; ticketType: { name: string }; amountPaid: MoneyValue };
 export type EmailOrder = {
-  id: string; reference: string; name: string; email: string; amount: number; ticketAmount: number; serviceFee: number;
+  id: string; reference: string; name: string; email: string; currency?: Currency; amount: MoneyValue; ticketAmount: MoneyValue; serviceFee: MoneyValue;
   paidAt: Date | null; event: EmailEvent; attendees: EmailTicket[];
-  items: { quantity: number; unitPrice: number; ticketType: { name: string } }[];
+  items: { quantity: number; unitPrice: MoneyValue; ticketType: { name: string } }[];
 };
 
 function eventRows(event: EmailEvent): [string, string][] {
@@ -67,9 +69,9 @@ export async function bookingEmail(order: EmailOrder): Promise<EmailMessage> {
   const url = appUrl(`/tickets/${encodeURIComponent(order.reference)}`);
   const receipt: [string, string][] = [
     ["Booking reference", order.reference],
-    ...order.items.map((item): [string, string] => [`${item.ticketType.name} × ${item.quantity}`, money(item.unitPrice * item.quantity)]),
-    ["Tickets subtotal", money(order.ticketAmount)], ["Service fee", money(order.serviceFee)], ["Total paid", money(order.amount)],
-    ["Payment status", order.amount === 0 ? "Confirmed · Free booking" : "Paid"],
+    ...order.items.map((item): [string, string] => [`${item.ticketType.name} × ${item.quantity}`, money(Number(item.unitPrice) * item.quantity, order.currency)]),
+    ["Tickets subtotal", money(order.ticketAmount, order.currency)], ["Service fee", money(order.serviceFee, order.currency)], ["Total paid", money(order.amount, order.currency)],
+    ["Payment status", Number(order.amount) === 0 ? "Confirmed · Free booking" : "Paid"],
     ...(order.paidAt ? [["Confirmed on", new Intl.DateTimeFormat("en-GB", { timeZone: order.event.timezone, dateStyle: "medium", timeStyle: "short" }).format(order.paidAt)] as [string, string]] : []),
   ];
   return brandedEmail({ to: order.email, subject: `You're booked: ${order.event.title} — receipt & tickets`, eyebrow: "Booking confirmed", heading: "Your next great moment is booked.",
@@ -79,7 +81,7 @@ export async function bookingEmail(order: EmailOrder): Promise<EmailMessage> {
 
 export function bookingAlert(order: EmailOrder, recipient: string, admin: boolean) {
   const url = appUrl(admin ? "/admin" : `/organiser/events/${order.event.id}`);
-  const rows: [string, string][] = [["Event", order.event.title], ["Customer", order.name], ["Customer email", order.email], ["Reference", order.reference], ...order.items.map((item): [string, string] => ["Tickets", `${item.ticketType.name} × ${item.quantity}`]), ["Total paid", money(order.amount)]];
+  const rows: [string, string][] = [["Event", order.event.title], ["Customer", order.name], ["Customer email", order.email], ["Reference", order.reference], ...order.items.map((item): [string, string] => ["Tickets", `${item.ticketType.name} × ${item.quantity}`]), ["Total paid", money(order.amount, order.currency)]];
   return brandedEmail({ to: recipient, subject: `New booking: ${order.event.title}`, eyebrow: admin ? "Platform booking notification" : "New event booking", heading: "Another guest. Another great moment.", body: paragraph("A confirmed booking has been added to the event. Tickets have been issued to the customer.") + details(rows) + button("View dashboard", url), text: `Confirmed booking\n${rows.map(([key, value]) => `${key}: ${value}`).join('\n')}\nDashboard: ${url}` });
 }
 

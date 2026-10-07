@@ -3,8 +3,10 @@ export function toCsv<T>(
   columns: { key: keyof T; header: string }[]
 ): string {
   const escape = (value: unknown): string => {
-    const str = value === null || value === undefined ? "" : String(value);
-    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+    let str = value === null || value === undefined ? "" : String(value);
+    // Prevent user-entered cells from being interpreted as spreadsheet formulas.
+    if (typeof value === "string" && /^[\s]*[=+@-]/.test(str)) str = "'" + str;
+    if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
       return `"${str.replace(/"/g, '""')}"`;
     }
     return str;
