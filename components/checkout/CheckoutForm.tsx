@@ -26,6 +26,15 @@ type SelectedTickets = Record<string, number>;
 
 type AnswerMap = Record<string, string>;
 
+function inputClass(invalid: boolean) {
+  return [
+    "h-12 w-full rounded-xl border px-3.5 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-400 focus:ring-4",
+    invalid
+      ? "border-red-500 bg-red-50/40 focus:border-red-500 focus:ring-red-500/10"
+      : "border-zinc-200 bg-white focus:border-violet-400 focus:ring-violet-500/10",
+  ].join(" ");
+}
+
 export default function CheckoutForm({
   event,
 }: CheckoutFormProps) {
@@ -42,6 +51,7 @@ export default function CheckoutForm({
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [attemptedCheckout, setAttemptedCheckout] = useState(false);
 
   const selectedItems = useMemo(() => {
     return event.ticketTypes
@@ -120,57 +130,35 @@ export default function CheckoutForm({
     setError("");
   }
 
+  const validationErrors: Record<string, string> = {};
+  if (!ticketCount) validationErrors["ticket-selection"] = "Add at least one ticket to continue.";
+  else if (belowUsdMinimum) validationErrors["ticket-selection"] = `Select more tickets to reach the minimum total of ${formatPrice(2)}.`;
+  if (name.trim().length < 2 || name.trim().length > 120) validationErrors["customer-name"] = "Enter your full name (2–120 characters).";
+  if (email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) validationErrors["customer-email"] = "Enter a valid email address.";
+  const phoneDigits = phone.replace(/\D/g, "");
+  if (phoneDigits.length < 10 || phoneDigits.length > 15) validationErrors["customer-phone"] = "Enter a valid phone number (10–15 digits).";
+  for (const question of event.customQuestions) {
+    const answer = answers[question.id]?.trim() || "";
+    if (question.required && !answer) validationErrors[`question-${question.id}`] = "Please answer this question.";
+    else if (question.type === "select" && answer && question.options?.length && !question.options.includes(answer)) validationErrors[`question-${question.id}`] = "Choose a valid option.";
+  }
+  const fieldErrors = attemptedCheckout ? validationErrors : {};
+  const displayError = error || (attemptedCheckout && Object.keys(validationErrors).length > 0 ? "Please update the fields highlighted in red to continue." : "");
+  const detailsInvalid = ["customer-name", "customer-email", "customer-phone"].some((id) => fieldErrors[id]);
+  const questionsInvalid = event.customQuestions.some((question) => fieldErrors[`question-${question.id}`]);
+
   function validate(): boolean {
-    if (selectedItems.length === 0) {
-      setError("Please select at least one ticket.");
-      return false;
-    }
-
-    if (!name.trim()) {
-      setError("Please enter your full name.");
-      return false;
-    }
-
-    if (!email.trim()) {
-      setError("Please enter your email address.");
-      return false;
-    }
-
-    if (!phone.trim()) {
-      setError("Please enter your phone number.");
-      return false;
-    }
-
-    for (const question of event.customQuestions) {
-      if (
-        question.required &&
-        !answers[question.id]?.trim()
-      ) {
-        setError(
-          `Please answer: ${question.label}`
-        );
-        return false;
-      }
-
-      if (
-        question.type === "select" &&
-        question.options?.length &&
-        answers[question.id] &&
-        !question.options.includes(
-          answers[question.id]
-        )
-      ) {
-        setError(
-          `Please select a valid answer for: ${question.label}`
-        );
-        return false;
-      }
-    }
-
-    return true;
+    setAttemptedCheckout(true);
+    const firstInvalidId = Object.keys(validationErrors)[0];
+    if (!firstInvalidId) return true;
+    const target = document.getElementById(firstInvalidId);
+    target?.focus({ preventScroll: true });
+    target?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
+    return false;
   }
 
   async function handleCheckout() {
+    if (loading) return;
     setError("");
 
     if (!validate()) {
@@ -309,7 +297,11 @@ export default function CheckoutForm({
         {/* Left */}
         <div className="space-y-6">
           {/* Tickets */}
-          <section className="rounded-[24px] border border-zinc-200 bg-white">
+          <section
+            id="ticket-selection" tabIndex={-1} aria-labelledby="ticket-selection-heading"
+            aria-describedby={fieldErrors["ticket-selection"] ? "ticket-selection-error" : "ticket-selection-help"}
+            className={`scroll-mt-28 rounded-[24px] border bg-white outline-none transition-colors ${fieldErrors["ticket-selection"] ? "border-red-500 ring-2 ring-red-500/10" : "border-zinc-200"}`}
+          >
             <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
@@ -320,12 +312,12 @@ export default function CheckoutForm({
                 </div>
 
                 <div>
-                  <h2 className="text-sm font-semibold tracking-[-0.02em] text-zinc-900">
+                  <h2 id="ticket-selection-heading" className="text-sm font-semibold tracking-[-0.02em] text-zinc-900">
                     Select tickets
                   </h2>
 
-                  <p className="mt-0.5 text-[10px] text-zinc-400">
-                    Choose the tickets you want.
+                  <p id="ticket-selection-help" className="mt-1 text-xs leading-5 text-zinc-500">
+                    Tap Add ticket to select. Use + or − to change the quantity.
                   </p>
                 </div>
               </div>
@@ -348,7 +340,8 @@ export default function CheckoutForm({
                   <div
                     key={ticket.id}
                     className={[
-                      "flex items-center justify-between gap-4 px-5 py-5 sm:px-6",
+                      "flex flex-wrap items-center justify-between gap-4 px-5 py-5 transition-colors sm:px-6",
+                      quantity > 0 ? "bg-violet-50/50" : "",
                       soldOut ? "opacity-45" : "",
                     ].join(" ")}
                   >
@@ -369,7 +362,18 @@ export default function CheckoutForm({
                     </div>
 
                     {!soldOut && (
-                      <div className="flex shrink-0 items-center rounded-xl border border-zinc-200">
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className="text-[11px] font-medium text-zinc-500">
+                          {quantity > 0 ? `${quantity} ${quantity === 1 ? "ticket" : "tickets"} selected` : "Choose quantity"}
+                        </span>
+                        {quantity === 0 ? (
+                          <button type="button" onClick={() => changeQuantity(ticket.id, 1)}
+                            aria-label={`Add ${ticket.name} ticket`}
+                            className="flex min-h-11 items-center gap-2 rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/25">
+                            <Plus className="h-4 w-4" aria-hidden="true" /> Add ticket
+                          </button>
+                        ) : (
+                        <div className="flex items-center overflow-hidden rounded-xl border border-violet-200 bg-white">
                         <button
                           type="button"
                           onClick={() =>
@@ -380,12 +384,12 @@ export default function CheckoutForm({
                           }
                           disabled={quantity === 0}
                           aria-label={`Remove ${ticket.name}`}
-                          className="flex h-10 w-10 items-center justify-center text-zinc-400 transition-colors hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-30"
+                          className="flex h-11 w-11 items-center justify-center text-violet-700 transition-colors hover:bg-violet-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500 disabled:cursor-not-allowed disabled:opacity-30"
                         >
                           <Minus className="h-3.5 w-3.5" />
                         </button>
 
-                        <span className="flex h-10 min-w-8 items-center justify-center border-x border-zinc-200 text-xs font-semibold text-zinc-900">
+                        <span aria-live="polite" aria-label={`${quantity} ${ticket.name} tickets selected`} className="flex h-11 min-w-11 items-center justify-center border-x border-violet-200 text-sm font-bold text-zinc-900">
                           {quantity}
                         </span>
 
@@ -402,20 +406,23 @@ export default function CheckoutForm({
                             quantity >= 20
                           }
                           aria-label={`Add ${ticket.name}`}
-                          className="flex h-10 w-10 items-center justify-center text-zinc-400 transition-colors hover:text-violet-600 disabled:cursor-not-allowed disabled:opacity-30"
+                          className="flex h-11 w-11 items-center justify-center bg-violet-600 text-white transition-colors hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white disabled:cursor-not-allowed disabled:bg-violet-200 disabled:text-violet-400"
                         >
                           <Plus className="h-3.5 w-3.5" />
                         </button>
+                        </div>
+                        )}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
+            {fieldErrors["ticket-selection"] && <p id="ticket-selection-error" className="px-5 pb-5 text-xs font-medium text-red-600 sm:px-6">{fieldErrors["ticket-selection"]}</p>}
           </section>
 
           {/* Details */}
-          <section className="rounded-[24px] border border-zinc-200 bg-white">
+          <section className={`rounded-[24px] border bg-white transition-colors ${detailsInvalid ? "border-red-500 ring-2 ring-red-500/10" : "border-zinc-200"}`}>
             <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
               <h2 className="text-sm font-semibold tracking-[-0.02em] text-zinc-900">
                 Your details
@@ -428,6 +435,8 @@ export default function CheckoutForm({
 
             <div className="space-y-5 p-5 sm:p-6">
               <Field
+                id="customer-name"
+                error={fieldErrors["customer-name"]}
                 label="Full name"
                 value={name}
                 onChange={setName}
@@ -436,6 +445,8 @@ export default function CheckoutForm({
               />
 
               <Field
+                id="customer-email"
+                error={fieldErrors["customer-email"]}
                 label="Email address"
                 type="email"
                 value={email}
@@ -445,6 +456,8 @@ export default function CheckoutForm({
               />
 
               <Field
+                id="customer-phone"
+                error={fieldErrors["customer-phone"]}
                 label="Phone number"
                 type="tel"
                 value={phone}
@@ -457,7 +470,7 @@ export default function CheckoutForm({
 
           {/* Custom questions */}
           {event.customQuestions.length > 0 && (
-            <section className="rounded-[24px] border border-zinc-200 bg-white">
+            <section className={`rounded-[24px] border bg-white transition-colors ${questionsInvalid ? "border-red-500 ring-2 ring-red-500/10" : "border-zinc-200"}`}>
               <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
                 <h2 className="text-sm font-semibold tracking-[-0.02em] text-zinc-900">
                   A little more about you
@@ -491,6 +504,9 @@ export default function CheckoutForm({
                         <div className="relative">
                           <select
                             id={`question-${question.id}`}
+                            aria-required={question.required}
+                            aria-invalid={!!fieldErrors[`question-${question.id}`]}
+                            aria-describedby={fieldErrors[`question-${question.id}`] ? `question-${question.id}-error` : undefined}
                             value={
                               answers[question.id] ?? ""
                             }
@@ -500,7 +516,7 @@ export default function CheckoutForm({
                                 event.target.value
                               )
                             }
-                            className="h-12 w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3.5 pr-10 text-sm text-zinc-800 outline-none transition-colors focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10"
+                            className={`${inputClass(!!fieldErrors[`question-${question.id}`])} scroll-mt-28 appearance-none pr-10`}
                           >
                             <option value="">
                               Select an option
@@ -526,6 +542,9 @@ export default function CheckoutForm({
                       ) : (
                         <input
                           id={`question-${question.id}`}
+                          aria-required={question.required}
+                          aria-invalid={!!fieldErrors[`question-${question.id}`]}
+                          aria-describedby={fieldErrors[`question-${question.id}`] ? `question-${question.id}-error` : undefined}
                           value={
                             answers[question.id] ?? ""
                           }
@@ -535,10 +554,11 @@ export default function CheckoutForm({
                               event.target.value
                             )
                           }
-                          className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10"
+                          className={`${inputClass(!!fieldErrors[`question-${question.id}`])} scroll-mt-28`}
                           placeholder="Your answer"
                         />
                       )}
+                      {fieldErrors[`question-${question.id}`] && <p id={`question-${question.id}-error`} className="mt-2 text-xs text-red-600">{fieldErrors[`question-${question.id}`]}</p>}
                     </div>
                   )
                 )}
@@ -547,13 +567,13 @@ export default function CheckoutForm({
           )}
 
           {/* Error */}
-          {error && (
+          {displayError && (
             <div
               role="alert"
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3"
             >
               <p className="text-xs font-medium leading-5 text-red-600">
-                {error}
+                {displayError}
               </p>
             </div>
           )}
@@ -578,8 +598,9 @@ export default function CheckoutForm({
                   <Ticket className="mx-auto h-5 w-5 text-zinc-300" />
 
                   <p className="mt-2 text-xs font-medium text-zinc-400">
-                    No tickets selected yet.
+                    Choose a ticket to get started.
                   </p>
+                  <p className="mt-1 text-[11px] leading-5 text-zinc-500">Use Add ticket beside your preferred ticket.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -654,10 +675,8 @@ export default function CheckoutForm({
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={
-                  loading || selectedItems.length === 0 || belowUsdMinimum
-                }
-                className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-zinc-200 disabled:text-zinc-400"
+                disabled={loading}
+                className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-violet-500/25 disabled:cursor-wait disabled:opacity-70"
               >
                 {loading ? (
                   <>
@@ -669,7 +688,7 @@ export default function CheckoutForm({
                   </>
                 ) : (
                   <>
-                    {isFree
+                    {ticketCount === 0 ? "Get tickets" : isFree
                       ? "Get Free Ticket"
                       : "Continue to Payment"}
 
@@ -686,8 +705,9 @@ export default function CheckoutForm({
                   <Ticket className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
 
                   <p className="text-[9px] leading-4 text-zinc-400">
-                    Your ticket will be issued instantly after
-                    you complete this form.
+                    {ticketCount === 0
+                      ? "Choose your ticket quantity, then add your details to continue."
+                      : "Your ticket will be issued instantly after you complete this form."}
                   </p>
                 </div>
               ) : (
@@ -709,6 +729,8 @@ export default function CheckoutForm({
 }
 
 function Field({
+  id,
+  error,
   label,
   value,
   onChange,
@@ -716,6 +738,8 @@ function Field({
   type = "text",
   autoComplete,
 }: {
+  id: string;
+  error?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -725,11 +749,15 @@ function Field({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-[11px] font-semibold text-zinc-700">
+      <label htmlFor={id} className="mb-2 block text-[11px] font-semibold text-zinc-700">
         {label}
       </label>
 
       <input
+        id={id}
+        aria-required="true"
+        aria-invalid={!!error}
+        aria-describedby={error ? `${id}-error` : undefined}
         type={type}
         value={value}
         onChange={(event) =>
@@ -737,8 +765,9 @@ function Field({
         }
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-3.5 text-sm text-zinc-800 outline-none transition-colors placeholder:text-zinc-300 focus:border-violet-400 focus:ring-4 focus:ring-violet-500/10"
+        className={`${inputClass(!!error)} scroll-mt-28`}
       />
+      {error && <p id={`${id}-error`} className="mt-2 text-xs text-red-600">{error}</p>}
     </div>
   );
 }

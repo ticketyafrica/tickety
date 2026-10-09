@@ -13,6 +13,7 @@ model User {
   name                   String
   email                  String  @unique
   passwordHash           String
+  emailVerifiedAt        DateTime?
   role                   Role    @default(ORGANISER)
   paystackSubaccountCode String?
   paystackUsdSubaccountCode String?
@@ -26,6 +27,20 @@ model User {
   invitedStaff StaffInvitation[] @relation("StaffInvitationsSent")
 
   createdAt DateTime @default(now())
+}
+
+// Signup details stay here until the email address has been verified.
+model SignupVerification {
+  id           String   @id
+  email        String   @unique
+  name         String
+  passwordHash String
+  codeHash     String
+  attempts     Int      @default(0)
+  expiresAt    DateTime
+  sentAt       DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 model Event {

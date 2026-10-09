@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -25,61 +25,69 @@ export default function SignupPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  const [verificationId, setVerificationId] = useState("");
+  const [code, setCode] = useState("");
+  const [resendIn, setResendIn] = useState(0);
+  const [notice, setNotice] = useState("");
 
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = window.setTimeout(() => setResendIn((value) => Math.max(0, value - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendIn]);
+
+  async function sendCode() {
     if (loading) return;
-
     setLoading(true);
     setError("");
-
+    setNotice("");
     try {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          email: email.trim(),
-          password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password }),
       });
-
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-
-        setError(
-          body?.error ??
-            "We couldn't create your account. Please try again."
-        );
-
-        setLoading(false);
+        setError(body.error || "We couldn't send your code. Please try again.");
+        const retryAfter = Number(res.headers.get("Retry-After"));
+        if (retryAfter > 0) setResendIn(retryAfter);
         return;
       }
+      setEmail(body.email);
+      setVerificationId(body.verificationId);
+      setCode("");
+      setResendIn(body.resendAfter || 60);
+      setNotice("We've sent a six-digit code to your email. Check your inbox or spam folder. The code expires in 10 minutes.");
+    } catch {
+      setError("Something went wrong. Please check your connection and try again.");
+    } finally { setLoading(false); }
+  }
 
-      const signInRes = await signIn("credentials", {
-        email: email.trim(),
-        password,
-        redirect: false,
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (loading) return;
+    if (!verificationId) { await sendCode(); return; }
+    setLoading(true);
+    setError("");
+    let accountCreated = false;
+    try {
+      const res = await fetch("/api/auth/signup/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verificationId, code }),
       });
-
-      setLoading(false);
-
-      if (signInRes?.error) {
-        router.push("/login");
-        return;
-      }
-
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(body.error || "We couldn't verify your email. Please try again."); return; }
+      accountCreated = true;
+      const signInRes = await signIn("credentials", { email, password, redirect: false });
+      if (!signInRes || signInRes.error) { router.push("/login"); return; }
       router.push("/organiser/dashboard");
       router.refresh();
     } catch {
-      setError(
-        "Something went wrong. Please check your connection and try again."
-      );
-
-      setLoading(false);
-    }
+      if (accountCreated) { router.push("/login"); return; }
+      setError("Something went wrong. Please check your connection and try again.");
+    } finally { setLoading(false); }
   }
 
   return (
@@ -160,11 +168,11 @@ export default function SignupPage() {
                   </div>
 
                   <h2 className="font-display text-3xl font-semibold tracking-[-0.04em] text-[#111014]">
-                    Create your account
+                    {verificationId ? "Verify your email" : "Create your account"}
                   </h2>
 
                   <p className="mt-2 text-sm leading-6 text-black/40">
-                    Start organising better events with Tickety.
+                    {verificationId ? `Enter the code sent to ${email}.` : "Start organising better events with Tickety."}
                   </p>
                 </div>
 
@@ -174,11 +182,13 @@ export default function SignupPage() {
                   <div className="mt-6 flex items-start gap-3 rounded-[12px] border border-red-200 bg-red-50 px-4 py-3">
                     <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
 
-                    <p className="text-xs leading-5 text-red-600">
+                    <p role="alert" className="text-xs leading-5 text-red-600">
                       {error}
                     </p>
                   </div>
                 )}
+
+                {notice && <p role="status" className="mt-5 rounded-xl bg-purple-50 px-4 py-3 text-xs leading-5 text-purple-800">{notice}</p>}
 
                 {/* =================================================
                     FORM
@@ -188,6 +198,7 @@ export default function SignupPage() {
                   onSubmit={handleSubmit}
                   className="mt-7 space-y-5"
                 >
+                  {!verificationId && <fieldset disabled={loading} className="space-y-5">
                   {/* Name */}
 
                   <label className="block">
@@ -373,11 +384,35 @@ export default function SignupPage() {
                     </div>
                   </label>
 
+                  </fieldset>}
+
+                  {verificationId && (
+                    <div className="space-y-4">
+                      <label className="block">
+                        <span className="mb-2 block text-xs font-semibold text-[#111014]">Verification code</span>
+                        <input autoFocus required type="text" inputMode="numeric" autoComplete="one-time-code"
+                          pattern="[0-9]{6}" maxLength={6} value={code} disabled={loading}
+                          onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
+                          placeholder="000000" aria-describedby="code-help"
+                          className="h-[52px] w-full rounded-[14px] border border-black/10 bg-[#FAFAF9] px-4 text-center text-xl tracking-[0.4em] text-[#111014] outline-none focus:border-[#7C3AED]/50 focus:ring-2 focus:ring-[#7C3AED]/10" />
+                      </label>
+                      <p id="code-help" className="text-xs text-black/50">Use the most recent code. Each code can only be used once.</p>
+                      <div className="flex items-center justify-between gap-3 text-xs">
+                        <button type="button" disabled={loading || resendIn > 0} onClick={sendCode}
+                          className="font-semibold text-[#6D28D9] disabled:opacity-50">
+                          {resendIn > 0 ? `Resend code in ${resendIn}s` : "Resend code"}
+                        </button>
+                        <button type="button" disabled={loading} className="text-black/50"
+                          onClick={() => { setVerificationId(""); setCode(""); setError(""); setNotice(""); }}>Change details</button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Submit */}
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || (!verificationId && resendIn > 0)}
                     className="
                       flex
                       h-[54px]
@@ -399,11 +434,11 @@ export default function SignupPage() {
                       <>
                         <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-white" />
 
-                        <span>Creating account...</span>
+                        <span>{verificationId ? "Verifying..." : "Sending code..."}</span>
                       </>
                     ) : (
                       <>
-                        <span>Create account</span>
+                        <span>{verificationId ? "Verify email & create account" : resendIn > 0 ? `Try again in ${resendIn}s` : "Send verification code"}</span>
                         <ArrowRight size={16} />
                       </>
                     )}

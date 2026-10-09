@@ -10,6 +10,7 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "test:signup": "TS_NODE_PROJECT=tsconfig.scripts.json node --require ts-node/register --test tests/signup-verification.test.ts",
     "test:emails": "TS_NODE_PROJECT=tsconfig.scripts.json node --require ts-node/register --test tests/email*.test.ts",
     "emails:preview": "ts-node --project tsconfig.scripts.json scripts/preview-emails.ts",
     "emails:backfill": "ts-node --project tsconfig.scripts.json scripts/backfill-event-emails.ts",

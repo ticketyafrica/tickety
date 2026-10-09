@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   }
   try {
     await prisma.emailSubscriptionRateLimit.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    await prisma.signupVerification.deleteMany({ where: { expiresAt: { lt: new Date(Date.now() - 24 * 60 * 60_000) } } });
     const result = await processEmailQueue();
     return NextResponse.json(result, { status: result.configured ? 200 : 503 });
   } catch {
