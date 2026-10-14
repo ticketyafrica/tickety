@@ -3,7 +3,6 @@ import Link from "next/link";
 import {
   ArrowUpRight,
   Instagram,
-  MessageCircle,
   Ticket,
 } from "lucide-react";
 
@@ -19,7 +18,6 @@ const columns = [
   {
     title: "Company",
     links: [
-      
       { label: "What we offer", href: "/what-we-offer" },
       { label: "Contact", href: servicesWhatsAppUrl() },
     ],
@@ -132,11 +130,25 @@ export default function Footer() {
             {/* Social */}
             <div className="mt-6 flex items-center gap-2">
               <a
-                href="#"
-                aria-label="Instagram"
+                href="https://www.instagram.com/tickety.africa/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow Tickety on Instagram"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.025] text-white/35 transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
               >
-                <Instagram size={15} />
+                <Instagram size={15} aria-hidden="true" />
+              </a>
+
+              <a
+                href="https://www.tiktok.com/@tickety.africa"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Follow Tickety on TikTok"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.025] text-white/35 transition-all hover:border-white/20 hover:bg-white/[0.07] hover:text-white"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" />
+                </svg>
               </a>
 
               <a
@@ -146,7 +158,9 @@ export default function Footer() {
                 aria-label="Contact Tickety on WhatsApp"
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/[0.025] text-white/35 transition-all hover:border-[#25D366]/20 hover:bg-[#25D366]/[0.08] hover:text-[#25D366]"
               >
-                <MessageCircle size={15} />
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.52 3.48A11.9 11.9 0 0 0 12.05 0C5.46 0 .1 5.36.1 11.95c0 2.11.55 4.17 1.6 5.99L0 24l6.23-1.63a11.93 11.93 0 0 0 5.82 1.48h.01C18.65 23.85 24 18.49 24 11.9c0-3.19-1.24-6.19-3.48-8.42ZM12.06 21.83a9.9 9.9 0 0 1-5.05-1.38l-.36-.21-3.7.97.99-3.61-.24-.37a9.88 9.88 0 0 1-1.52-5.28c0-5.48 4.46-9.94 9.94-9.94 2.66 0 5.15 1.04 7.03 2.92a9.87 9.87 0 0 1 2.91 7.03c0 5.48-4.46 9.94-10 9.87Zm5.45-7.44c-.3-.15-1.77-.87-2.04-.97-.28-.1-.48-.15-.68.15s-.77.97-.94 1.17c-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.38-.03-.53-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.09 4.49.71.3 1.27.49 1.7.63.71.22 1.36.19 1.87.12.57-.09 1.77-.73 2.02-1.44.25-.7.25-1.3.17-1.43-.07-.12-.27-.2-.57-.35Z" />
+                </svg>
               </a>
             </div>
           </div>
@@ -163,6 +177,8 @@ export default function Footer() {
                   <li key={link.label}>
                     <Link
                       href={link.href}
+                      target={link.href.startsWith("https://") ? "_blank" : undefined}
+                      rel={link.href.startsWith("https://") ? "noopener noreferrer" : undefined}
                       className="group inline-flex items-center gap-1.5 text-sm text-white/55 transition-colors hover:text-white"
                     >
                       {link.label}

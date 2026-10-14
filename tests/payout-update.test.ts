@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, mock } from "node:test";
 import { createPayoutVerificationToken } from "../lib/payout-verification";
 import { PayoutUpdateError, updateVerifiedPayoutAccount } from "../lib/payout-update";
-import { updateSubaccount, PaystackSubaccount } from "../lib/paystack";
+import { getSubaccount, updateSubaccount, PaystackSubaccount, PaystackSubaccountError } from "../lib/paystack";
 
 const user = { id: "organiser-1", name: "Event Company", paystackSubaccountCode: "ACCT_owned" };
 const verifiedDetails = { userId: user.id, bankCode: "058", accountNumber: "0123456789", accountName: "VERIFIED HOLDER" };
@@ -93,4 +93,50 @@ test("Paystack update uses PUT and sends only editable bank details", async () =
     });
     assert.equal((await updateSubaccount("ACCT_owned", { bankCode: "058", accountNumber: "0123456789", businessName: "Company" })).subaccount_code, "ACCT_owned");
   } finally { mock.restoreAll(); if (previous === undefined) delete process.env.PAYSTACK_SECRET_KEY; else process.env.PAYSTACK_SECRET_KEY = previous; }
+});
+
+test("missing saved Paystack accounts return a recovery error and never change bank details", async () => withSecret(async () => {
+  const previous = process.env.PAYSTACK_SECRET_KEY;
+  process.env.PAYSTACK_SECRET_KEY = "sk_test_placeholder";
+  const methods: string[] = [];
+  try {
+    mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
+      methods.push(init?.method ?? "GET");
+      return new Response(JSON.stringify({ status: false, message: "Subaccount not found" }), { status: 404 });
+    });
+    await assert.rejects(updateVerifiedPayoutAccount(user, body()), (error: unknown) => {
+      assert.ok(error instanceof PaystackSubaccountError);
+      assert.equal(error.status, 409);
+      assert.equal(error.providerStatus, 404);
+      assert.match(error.message, /test\/live mode/);
+      return true;
+    });
+    assert.deepEqual(methods, ["GET"]);
+    await assert.rejects(updateSubaccount(user.paystackSubaccountCode, { bankCode: "058", accountNumber: "0123456789", businessName: "Company" }), PaystackSubaccountError);
+  } finally {
+    if (previous === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+    else process.env.PAYSTACK_SECRET_KEY = previous;
+  }
+}));
+
+test("Paystack authorization, outages and malformed successes return safe provider errors", async () => {
+  const previous = process.env.PAYSTACK_SECRET_KEY;
+  process.env.PAYSTACK_SECRET_KEY = "sk_test_placeholder";
+  try {
+    for (const status of [401, 403, 429, 500, 200]) {
+      mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ status: status === 200, message: "Sensitive provider details", data: null }), { status }));
+      await assert.rejects(getSubaccount("ACCT_owned"), (error: unknown) => {
+        assert.ok(error instanceof PaystackSubaccountError);
+        assert.equal(error.status, 502);
+        assert.equal(error.providerStatus, status);
+        assert.ok(!error.message.includes("Sensitive provider details"));
+        return true;
+      });
+      mock.restoreAll();
+    }
+  } finally {
+    mock.restoreAll();
+    if (previous === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+    else process.env.PAYSTACK_SECRET_KEY = previous;
+  }
 });

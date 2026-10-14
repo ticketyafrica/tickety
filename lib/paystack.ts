@@ -473,24 +473,52 @@ export interface PaystackSubaccount {
   business_name?: string;
 }
 
+export class PaystackSubaccountError extends Error {
+  constructor(message: string, public status: number, public providerStatus: number) {
+    super(message);
+    this.name = "PaystackSubaccountError";
+  }
+}
+
+function checkSubaccountResponse(res: Response, data: any, operation: "retrieve" | "update") {
+  if (res.ok && data?.status === true && data.data?.subaccount_code) return;
+  const message = typeof data?.message === "string" ? data.message.toLowerCase() : "";
+  if (res.status === 404 || message.includes("subaccount not found")) {
+    throw new PaystackSubaccountError(
+      "Your saved payout account was not found in the current Paystack integration. Contact Tickety support to check the account and Paystack test/live mode before reconnecting payouts.",
+      409, res.status
+    );
+  }
+  if (res.status === 401 || res.status === 403) {
+    throw new PaystackSubaccountError(
+      "Paystack could not authorize access to your payout account. Contact Tickety support to check the payment configuration.",
+      502, res.status
+    );
+  }
+  throw new PaystackSubaccountError(
+    `Paystack could not ${operation} your payout account. Please try again; if this continues, contact Tickety support.`,
+    502, res.status
+  );
+}
+
 export async function getSubaccount(code: string) {
-  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code)}`, {
+  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code.trim())}`, {
     headers: { Authorization: `Bearer ${getPaystackSecret()}` }, cache: "no-store",
   });
   const data = await parsePaystackResponse(res);
-  if (!res.ok || !data.status) throw new Error("Unable to retrieve payout account from Paystack");
+  checkSubaccountResponse(res, data, "retrieve");
   return data.data as PaystackSubaccount;
 }
 
 export async function updateSubaccount(code: string, params: {
   bankCode: string; accountNumber: string; businessName: string;
 }) {
-  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code)}`, {
+  const res = await fetch(`${PAYSTACK_BASE}/subaccount/${encodeURIComponent(code.trim())}`, {
     method: "PUT",
     headers: { Authorization: `Bearer ${getPaystackSecret()}`, "Content-Type": "application/json" },
     body: JSON.stringify({ bank_code: params.bankCode, account_number: params.accountNumber, business_name: params.businessName }),
   });
   const data = await parsePaystackResponse(res);
-  if (!res.ok || !data.status) throw new Error(data.message ?? "Unable to update payout account with Paystack");
+  checkSubaccountResponse(res, data, "update");
   return data.data as PaystackSubaccount;
 }

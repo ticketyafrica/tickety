@@ -11,6 +11,7 @@ import {
   createSubaccount,
   getSubaccount,
   listBanks,
+  PaystackSubaccountError,
 } from "@/lib/paystack";
 import { verifyPayoutVerificationToken } from "@/lib/payout-verification";
 
@@ -138,14 +139,17 @@ export async function GET(request: NextRequest) {
       payoutConfigured: connected,
     });
   } catch (error) {
-    console.error("Payout GET error:", error);
+    console.error("Payout GET error", {
+      error: error instanceof Error ? error.name : "UnknownError",
+      providerStatus: error instanceof PaystackSubaccountError ? error.providerStatus : undefined,
+    });
 
     return NextResponse.json(
       {
         error: getErrorMessage(error),
       },
       {
-        status: 500,
+        status: error instanceof PaystackSubaccountError ? error.status : 500,
       }
     );
   }
@@ -459,9 +463,12 @@ export async function PATCH(request: NextRequest) {
     await recordAudit({ action: "payout.updated", actorId: user.id, actorName: user.name, entityType: "user", entityId: user.id, summary: "Updated NGN payout account" });
     return NextResponse.json({ success: true, connected: true, details });
   } catch (error) {
-    console.error("Payout update failed", { error: error instanceof Error ? error.name : "UnknownError" });
+    console.error("Payout update failed", {
+      error: error instanceof Error ? error.name : "UnknownError",
+      providerStatus: error instanceof PaystackSubaccountError ? error.providerStatus : undefined,
+    });
     return NextResponse.json({ error: getErrorMessage(error) }, {
-      status: error instanceof PayoutUpdateError || error instanceof PayoutPinError ? error.status : 502,
+      status: error instanceof PayoutUpdateError || error instanceof PayoutPinError || error instanceof PaystackSubaccountError ? error.status : 502,
     });
   }
 }
