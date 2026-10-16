@@ -23,7 +23,12 @@ test("event preview uses event content and flyer across social platforms", () =>
 
 test("default and missing event images use the requested absolute fallback", () => {
   for (const meta of [pageMetadata({ title: "Explore", path: "/explore" }), eventMetadata({ ...event, coverImageUrl: undefined })]) {
-    assert.equal((meta.openGraph?.images as { url: string }[])[0].url, absoluteUrl("/images/event.png"));
+    const image = (meta.openGraph?.images as { url: string; width: number; height: number; type: string }[])[0];
+    assert.equal(image.url, absoluteUrl("/images/social-preview.jpg"));
+    assert.equal(image.width, 1200);
+    assert.equal(image.height, 630);
+    assert.equal(image.type, "image/jpeg");
+    assert.equal((meta.twitter?.images as { url: string }[])[0].url, absoluteUrl("/images/social-preview.jpg"));
   }
 });
 

@@ -5,7 +5,7 @@ import { getEventStart, getEventEnd } from "./event-time";
 const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || "https://tickety.africa";
 export const siteUrl = new URL(configuredUrl).origin;
 export const siteName = "Tickety Africa";
-export const defaultImage = "/images/event.png";
+export const defaultImage = "/images/social-preview.jpg";
 export const defaultDescription = "Discover events in Nigeria and across Africa. Book tickets for concerts, comedy, tech, food and networking events, or create and manage your own event with Tickety.";
 const keywords = ["Tickety Africa", "event tickets", "events in Nigeria", "events in Africa", "online event ticketing", "concert tickets", "event registration"];
 
@@ -26,12 +26,19 @@ export function pageMetadata({ title, description = defaultDescription, path, im
 }): Metadata {
   const fullTitle = `${title} | ${siteName}`;
   const imageUrl = absoluteUrl(image);
+  const socialImage = {
+    url: imageUrl,
+    alt: imageAlt,
+    ...(imageUrl === absoluteUrl(defaultImage)
+      ? { width: 1200, height: 630, type: "image/jpeg" }
+      : {}),
+  };
   return {
     title: { absolute: fullTitle }, description,
     keywords: [...new Set([...keywords, ...extraKeywords])],
     ...(path ? { alternates: { canonical: absoluteUrl(path) } } : {}),
     robots: noIndex ? { index: false, follow: false } : { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
-    openGraph: { type: "website", locale: "en_NG", siteName, title: fullTitle, description, ...(path ? { url: absoluteUrl(path) } : {}), images: [{ url: imageUrl, alt: imageAlt }] },
+    openGraph: { type: "website", locale: "en_NG", siteName, title: fullTitle, description, ...(path ? { url: absoluteUrl(path) } : {}), images: [socialImage] },
     twitter: { card: "summary_large_image", title: fullTitle, description, images: [{ url: imageUrl, alt: imageAlt }] },
   };
 }
