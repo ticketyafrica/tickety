@@ -1,3 +1,5 @@
+import { cache } from "react";
+import { eventMetadata, eventStructuredData, serializeJsonLd } from "@/lib/seo";
 import { formatMoney } from "@/lib/currency";
 import { notFound } from "next/navigation";
 import { getEventBySlug } from "@/lib/data";
@@ -25,12 +27,20 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
+const loadEvent = cache(getEventBySlug);
+
+export async function generateMetadata({ params }: { params: { slug: string } }) {
+  const event = await loadEvent(params.slug);
+  if (!event) notFound();
+  return eventMetadata(event);
+}
+
 export default async function EventPage({
   params,
 }: {
   params: { slug: string };
 }) {
-  const event = await getEventBySlug(params.slug);
+  const event = await loadEvent(params.slug);
 
   if (!event) {
     notFound();
@@ -38,6 +48,7 @@ export default async function EventPage({
 
   return (
     <main className="min-h-screen overflow-x-clip bg-[#FBFAFC] text-zinc-950">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializeJsonLd(eventStructuredData(event)) }} />
       <div className="mx-auto w-full max-w-[1440px] min-w-0 px-4 pb-20 pt-28 sm:px-6 sm:pt-32 lg:px-10 lg:pt-36">
         {/* =========================================================
             EVENT COUNTDOWN

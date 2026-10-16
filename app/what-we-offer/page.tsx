@@ -1,14 +1,11 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/lib/seo";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, ArrowUpRight, Check, MessageCircle, Sparkles, Ticket } from "lucide-react";
 import { SERVICES, servicesWhatsAppUrl } from "@/lib/services";
 import ServiceArtwork from "@/components/services/ServiceArtwork";
 
-export const metadata: Metadata = {
-  title: "What We Offer — Ticketing, Promotion & Event Support | Tickety",
-  description: "From event ticketing and QR check-in to promotion, content creation and event support. Discover what Tickety can do for your next event and talk to our team on WhatsApp.",
-};
+export const metadata = pageMetadata({ title: "Event Ticketing, Promotion & Event Support", description: "Create your event with Tickety Africa. Explore online ticketing, QR check-in, event promotion, content creation and on-site support for your next event.", path: "/what-we-offer", extraKeywords: ["event promotion", "QR ticket check-in", "event management Nigeria"] });
 const contactClass = "group inline-flex min-h-12 items-center justify-center gap-3 rounded-full px-6 py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-600 motion-reduce:transform-none";
 
 export default function WhatWeOfferPage() {

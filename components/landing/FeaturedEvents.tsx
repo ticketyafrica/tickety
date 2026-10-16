@@ -1,3 +1,5 @@
+import EventExpiryRefresh from "./EventExpiryRefresh";
+import { getEventEnd } from "@/lib/event-time";
 import Link from "next/link";
 import EventCard from "@/components/events/EventCard";
 import { getMostBookedEvents } from "@/lib/data";
@@ -13,6 +15,7 @@ export default async function FeaturedEvents() {
       id="featured-events"
       className="relative overflow-hidden bg-[#FAF9F6] text-[#17131D]"
     >
+      <EventExpiryRefresh expiresAt={Math.min(...topEvents.map(event => getEventEnd(event).getTime()))} />
       <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 sm:py-24 lg:px-12 lg:py-28">
         {/* SECTION HEADER */}
         <header className="mb-11 sm:mb-14 lg:mb-16">

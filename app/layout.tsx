@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMetadata, siteUrl } from "@/lib/seo";
 import { Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import SiteNavigation from "@/components/layout/SiteNavigation";
@@ -21,9 +22,12 @@ const body = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Tickety.africa — Event ticketing, built for easy discovery and checkout",
-  description:
-    "Discover events, choose your ticket, and complete checkout on the Tickety platform.",
+  ...pageMetadata({ title: "Discover Events & Book Tickets" }),
+  metadataBase: new URL(siteUrl),
+  applicationName: "Tickety Africa",
+  category: "Events and ticketing",
+  referrer: "origin-when-cross-origin",
+  formatDetection: { telephone: false },
 };
 
 export default function RootLayout({
