@@ -10,7 +10,19 @@ export const defaultDescription = "Discover events in Nigeria and across Africa.
 const keywords = ["Tickety Africa", "event tickets", "events in Nigeria", "events in Africa", "online event ticketing", "concert tickets", "event registration"];
 
 export function absoluteUrl(path: string): string {
-  return new URL(path, `${siteUrl}/`).toString();
+  const fallback = new URL(defaultImage, `${siteUrl}/`).toString();
+
+  try {
+    const url = new URL(path.trim(), `${siteUrl}/`);
+
+    if (url.protocol !== "https:" && url.protocol !== "http:") {
+      return fallback;
+    }
+
+    return url.toString();
+  } catch {
+    return fallback;
+  }
 }
 
 export function plainDescription(value: string, limit = 160): string {
@@ -27,12 +39,19 @@ export function pageMetadata({ title, description = defaultDescription, path, im
   const fullTitle = `${title} | ${siteName}`;
   const imageUrl = absoluteUrl(image);
   const socialImage = {
-    url: imageUrl,
-    alt: imageAlt,
-    ...(imageUrl === absoluteUrl(defaultImage)
-      ? { width: 1200, height: 630, type: "image/jpeg" }
-      : {}),
-  };
+  url: imageUrl,
+  secureUrl: imageUrl.startsWith("https://")
+    ? imageUrl
+    : undefined,
+  alt: imageAlt,
+  ...(imageUrl === absoluteUrl(defaultImage)
+    ? {
+        width: 1200,
+        height: 630,
+        type: "image/jpeg",
+      }
+    : {}),
+};
   return {
     title: { absolute: fullTitle }, description,
     keywords: [...new Set([...keywords, ...extraKeywords])],

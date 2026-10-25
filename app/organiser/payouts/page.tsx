@@ -41,6 +41,7 @@ export default async function OrganiserPayoutsPage() {
   }
 
   const isConnected = Boolean(user.paystackSubaccountCode);
+  const payoutReady = isConnected && Boolean(user.payoutPinHash);
 
   return (
     <div className="min-h-screen bg-[#F7F5F2] text-[#111014]">
@@ -70,6 +71,70 @@ export default async function OrganiserPayoutsPage() {
             </div>
           </div>
         </section>
+
+        {!payoutReady && (
+          <section className="mx-auto max-w-7xl px-5 pt-8 sm:px-8 lg:px-10">
+            <div className="relative overflow-hidden rounded-[24px] bg-[#111014] p-6 text-white sm:p-8 lg:p-10">
+              <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#7C3AED]/25 blur-3xl" />
+
+              <div className="relative max-w-2xl">
+                <span className="inline-flex rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#C4B5FD]">
+                  Organiser onboarding
+                </span>
+
+                <h2 className="mt-5 font-display text-2xl font-semibold tracking-[-0.04em] sm:text-3xl">
+                  Welcome to Tickety{user.name ? `, ${user.name.split(" ")[0]}` : ""}.
+                </h2>
+
+                <p className="mt-3 max-w-xl text-sm leading-7 text-white/60">
+                  Before creating your first event, let's get your payouts
+                  ready. This ensures your ticket earnings can be sent
+                  to your verified bank account.
+                </p>
+
+                <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-[16px] border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C4B5FD]">
+                      Step 01
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      Secure your payouts
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-white/45">
+                      Create your six-digit Tickety payout PIN.
+                    </p>
+                    {user.payoutPinHash && (
+                      <p className="mt-2 text-xs font-semibold text-green-300">
+                        Completed
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-[16px] border border-white/10 bg-white/[0.06] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#C4B5FD]">
+                      Step 02
+                    </p>
+                    <p className="mt-2 text-sm font-semibold">
+                      Connect your bank
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-white/45">
+                      Verify and connect the account that receives your earnings.
+                    </p>
+                    {isConnected && (
+                      <p className="mt-2 text-xs font-semibold text-green-300">
+                        Completed
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <p className="mt-5 text-xs text-white/45">
+                  Complete both steps below to unlock event creation.
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="mx-auto max-w-7xl px-5 pt-8 sm:px-8 lg:px-10">
           <div className="rounded-[24px] border border-black/[0.07] bg-white p-6">

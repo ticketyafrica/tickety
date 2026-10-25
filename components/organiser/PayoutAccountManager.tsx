@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { CheckCircle2, Landmark, Loader2, Pencil, ShieldCheck } from "lucide-react";
 import PayoutSetupForm from "./PayoutSetupForm";
 
@@ -44,6 +45,28 @@ export default function PayoutAccountManager({ name, email }: { name: string; em
         <div className="flex items-center gap-2 text-xs font-semibold"><Landmark size={16} className="text-violet-600" /> Connected bank account</div>
         {loading ? <p role="status" className="mt-4 flex items-center gap-2 text-xs text-black/45"><Loader2 size={14} className="animate-spin" /> Loading payout details...</p> : error ? <div className="mt-4"><p role="alert" className="text-xs leading-5 text-red-700">{error}</p><button type="button" onClick={() => setRevision((value) => value + 1)} className="mt-2 min-h-10 text-xs font-semibold text-violet-700">Try again</button></div> : details ? <div className="mt-4 grid gap-4 sm:grid-cols-2"><Detail label="Bank" value={details.bankName || "Connected bank"} /><Detail label="Account number" value={details.accountLast4 ? `••••••${details.accountLast4}` : "Not available"} /><Detail label="Account holder" value={details.accountName || "Not available"} /><Detail label="Business or organiser name" value={details.businessName || name} /></div> : <p className="mt-4 text-xs text-black/45">Your account is connected.</p>}
       </div>
+      <div className="mt-7 rounded-[18px] border border-violet-100 bg-[#F8F5FF] p-5 sm:p-6">
+        <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-violet-600">
+          Ready for your next step
+        </p>
+
+        <h3 className="mt-2 font-display text-xl font-semibold tracking-[-0.03em] text-[#111014]">
+          Your event journey starts here.
+        </h3>
+
+        <p className="mt-2 text-xs leading-6 text-black/50">
+          Your payout account is connected. You can now create
+          your first event and start selling tickets.
+        </p>
+
+        <Link
+          href="/organiser/events/new"
+          className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-[#7C3AED] px-6 text-sm font-semibold text-white transition-colors hover:bg-[#6D28D9]"
+        >
+          Create Your First Event
+        </Link>
+      </div>
+
       <button type="button" onClick={() => { setUpdated(false); setEditing(true); }} className="mt-6 inline-flex min-h-12 items-center gap-2 rounded-[13px] bg-[#111014] px-5 text-sm font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-violet-600"><Pencil size={15} /> Change payout account</button>
       <div className="mt-8 grid gap-5 border-t border-black/[0.07] pt-6 sm:grid-cols-2"><Detail label="Organiser" value={name} /><Detail label="Email" value={email} /></div>
       <p className="mt-6 flex items-start gap-2 text-xs leading-6 text-black/45"><ShieldCheck size={16} className="mt-1 shrink-0 text-violet-600" />New bank details must be verified before you can confirm a change. USD payout settings are managed separately.</p>

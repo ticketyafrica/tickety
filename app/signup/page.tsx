@@ -82,7 +82,7 @@ export default function SignupPage() {
       accountCreated = true;
       const signInRes = await signIn("credentials", { email, password, redirect: false });
       if (!signInRes || signInRes.error) { router.push("/login"); return; }
-      router.push("/organiser/dashboard");
+      router.replace("/organiser/payouts?onboarding=1");
       router.refresh();
     } catch {
       if (accountCreated) { router.push("/login"); return; }

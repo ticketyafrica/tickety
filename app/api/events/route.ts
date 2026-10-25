@@ -46,6 +46,43 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (session.user.role !== "ORGANISER") {
+    return NextResponse.json(
+      { error: "Only organisers can create events." },
+      { status: 403 }
+    );
+  }
+
+  const organiser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      payoutPinHash: true,
+      paystackSubaccountCode: true,
+      paystackUsdSubaccountCode: true,
+    },
+  });
+
+  if (!organiser) {
+    return NextResponse.json(
+      { error: "Organiser account not found." },
+      { status: 404 }
+    );
+  }
+
+  if (
+    !organiser.payoutPinHash ||
+    !organiser.paystackSubaccountCode?.trim()
+  ) {
+    return NextResponse.json(
+      {
+        error: "Complete your payout setup before creating an event.",
+        code: "PAYOUT_SETUP_REQUIRED",
+        redirectUrl: "/organiser/payouts?required=1",
+      },
+      { status: 409 }
+    );
+  }
+
   let body: any;
 
   try {
@@ -70,7 +107,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Choose NGN or USD as the event currency." }, { status: 400 });
   }
   if (!body.isFree && currency === "USD") {
-    const organiser = await prisma.user.findUnique({ where: { id: session.user.id } });
     if (process.env.PAYSTACK_USD_ENABLED !== "true" || !organiser?.paystackUsdSubaccountCode) {
       return NextResponse.json({ error: "USD sales require USD payments to be enabled and a connected USD payout account." }, { status: 409 });
     }

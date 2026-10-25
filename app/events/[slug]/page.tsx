@@ -9,6 +9,7 @@ import Badge from "@/components/ui/Badge";
 import TicketTypeCard from "@/components/events/TicketTypeCard";
 import GetTicketButton from "@/components/events/GetTicketButton";
 import EventCountdown from "@/components/events/EventCountdown";
+import EventShareButton from "@/components/events/EventShareButton";
 import EventSubscriptionForm from "@/components/events/EventSubscriptionForm";
 
 import {
@@ -19,7 +20,6 @@ import {
   Ticket,
   Clock3,
   MapPin,
-  Share2,
   UserRound,
 } from "lucide-react";
 
@@ -80,17 +80,7 @@ export default async function EventPage({
             Back to events
           </Link>
 
-          <button
-            type="button"
-            aria-label="Share event"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition-colors hover:border-violet-200 hover:bg-violet-50 hover:text-violet-600"
-          >
-            <Share2
-              aria-hidden="true"
-              className="h-4 w-4"
-              strokeWidth={1.8}
-            />
-          </button>
+          <EventShareButton eventTitle={event.title} />
         </div>
 
         {/* =========================================================
