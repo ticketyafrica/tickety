@@ -13,6 +13,12 @@ export function formatEventDate(iso: string, startTime: string): string {
   return `${formatted} \u00B7 ${startTime}`;
 }
 
+export function formatEventDateRange(event: { date: string; endDate?: string; startTime: string; endTime: string }): string {
+  const start = formatEventDate(event.date, event.startTime);
+  if (!event.endDate || event.endDate === event.date) return `${start} – ${event.endTime}`;
+  return `${start} – ${formatEventDate(event.endDate, event.endTime)}`;
+}
+
 export function ticketsLeft(quantityTotal: number, quantitySold: number): number {
   return Math.max(quantityTotal - quantitySold, 0);
 }

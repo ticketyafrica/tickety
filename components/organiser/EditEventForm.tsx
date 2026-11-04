@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { eventDuration } from "@/lib/event-duration";
+import EventDurationNote from "./EventDurationNote";
 import EventTimezoneSelect from "@/components/organiser/EventTimezoneSelect";
 import CoverImageUpload from "@/components/organiser/CoverImageUpload";
 import { NIGERIAN_STATES, EVENT_CATEGORIES } from "@/lib/utils";
@@ -43,6 +45,7 @@ type EventData = {
   venue: string;
   state: string;
   date: string;
+  endDate?: string;
   startTime: string;
   endTime: string;
   timezone: string;
@@ -67,6 +70,7 @@ export default function EditEventForm({
   const [venue, setVenue] = useState(event.venue);
   const [state, setState] = useState(event.state);
   const [date, setDate] = useState(event.date);
+  const [endDate, setEndDate] = useState(event.endDate ?? event.date);
   const [startTime, setStartTime] = useState(event.startTime);
   const [endTime, setEndTime] = useState(event.endTime);
   const [timezone, setTimezone] = useState(event.timezone);
@@ -175,6 +179,13 @@ export default function EditEventForm({
     e: React.FormEvent<HTMLFormElement>
   ) {
     e.preventDefault();
+    try {
+      eventDuration({ date, endDate: endDate || date, startTime, endTime, timezone });
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Choose valid event dates and times.");
+      return;
+    }
 
     setStatus("saving");
     setErrorMessage("");
@@ -190,6 +201,7 @@ export default function EditEventForm({
           venue,
           state,
           date,
+          endDate: endDate || date,
           startTime,
           endTime,
           timezone,
@@ -321,7 +333,7 @@ export default function EditEventForm({
             </Field>
 
             <Field
-              label="Date"
+              label="Start date"
               required
               icon={<CalendarDays size={13} />}
             >
@@ -329,9 +341,16 @@ export default function EditEventForm({
                 required
                 type="date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  if (!endDate || endDate < e.target.value || endDate === date) setEndDate(e.target.value);
+                }}
                 className={inputClass}
               />
+            </Field>
+
+            <Field label="End date" required icon={<CalendarDays size={13} />}>
+              <input required type="date" value={endDate} min={date || undefined} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
             </Field>
 
             <Field
@@ -352,6 +371,7 @@ export default function EditEventForm({
               <input required type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputClass} />
             </Field>
             <EventTimezoneSelect value={timezone} onChange={setTimezone} />
+            <EventDurationNote date={date} endDate={endDate} startTime={startTime} endTime={endTime} timezone={timezone} />
 
             <Field label="Category" required>
               <select

@@ -36,6 +36,7 @@ type DashboardEvent = {
   date: string;
   startTime: string;
   endTime: string;
+  endDate?: string;
   timezone?: string;
   ticketsSold: number;
   gross: number;
@@ -81,7 +82,7 @@ export default async function OrganiserDashboardPage({
 const liveEvents = events.filter((event) => {
   if (event.status !== "live") return false;
 
-  const eventEnd = eventInstant(event.date, event.endTime, event.timezone);
+  const eventEnd = eventInstant(event.endDate ?? event.date, event.endTime, event.timezone);
 
   return eventEnd > now;
 }).length;
@@ -367,7 +368,7 @@ function EventRow({
 }) {
   const isPending = event.status === "pending";
 
-const eventEnd = eventInstant(event.date, event.endTime, event.timezone);
+const eventEnd = eventInstant(event.endDate ?? event.date, event.endTime, event.timezone);
 
 const hasEnded =
   event.status === "live" &&

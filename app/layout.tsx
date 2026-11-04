@@ -6,6 +6,7 @@ import SiteNavigation from "@/components/layout/SiteNavigation";
 import Footer from "@/components/layout/Footer";
 import AuthSessionProvider from "@/components/providers/SessionProvider";
 import ConditionalSiteChrome from "@/components/layout/ConditionalSiteChrome";
+import WhatsAppContact from "@/components/layout/WhatsAppContact";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default function RootLayout({
           </main>
 
           <ConditionalSiteChrome footer />
+          <WhatsAppContact />
 
         </AuthSessionProvider>
       </body>

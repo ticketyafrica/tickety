@@ -86,6 +86,7 @@ export default async function EditEventPage({
               venue: event.venue,
               state: event.state,
               date: event.date.toISOString().slice(0, 10),
+              endDate: (event.endDate ?? event.date).toISOString().slice(0, 10),
               startTime: event.startTime,
               endTime: event.endTime,
               timezone: event.timezone,

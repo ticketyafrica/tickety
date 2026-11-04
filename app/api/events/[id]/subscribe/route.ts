@@ -13,7 +13,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
   const event = await prisma.event.findUnique({ where: { id: params.id } });
-  if (!event || event.status !== "live" || eventInstant(event.date, event.endTime, event.timezone) <= new Date()) return NextResponse.json({ error: "This event is not accepting subscriptions." }, { status: 404 });
+  if (!event || event.status !== "live" || eventInstant(event.endDate ?? event.date, event.endTime, event.timezone) <= new Date()) return NextResponse.json({ error: "This event is not accepting subscriptions." }, { status: 404 });
   if (await prisma.emailSuppression.findUnique({ where: { email } })) return accepted();
   try {
     const allowed = await prisma.$transaction(async (tx) => {

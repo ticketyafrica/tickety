@@ -15,20 +15,17 @@ export function getEventStart(event: {
 
 export function getEventEnd(event: {
   date: Date | string;
+  endDate?: Date | string | null;
   endTime: string;
   timezone?: string;
 }): Date {
-  const date =
-    event.date instanceof Date
-      ? event.date.toISOString().slice(0, 10)
-      : event.date.slice(0, 10);
-
-  return eventInstant(date, event.endTime, event.timezone);
+  return eventInstant(event.endDate ?? event.date, event.endTime, event.timezone);
 }
 
 export function isEventOngoing(event: {
   date: Date | string;
   startTime: string;
+  endDate?: Date | string | null;
   endTime: string;
   timezone?: string;
 }): boolean {
@@ -41,6 +38,7 @@ export function isEventOngoing(event: {
 
 export function hasEventEnded(event: {
   date: Date | string;
+  endDate?: Date | string | null;
   endTime: string;
   timezone?: string;
 }): boolean {
@@ -49,6 +47,7 @@ export function hasEventEnded(event: {
 
 export function canPurchaseTickets(event: {
   date: Date | string;
+  endDate?: Date | string | null;
   endTime: string;
   timezone?: string;
 }): boolean {

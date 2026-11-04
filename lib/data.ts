@@ -33,14 +33,15 @@ const COVER_GRADIENTS = [
   "from-leaf-600 via-plum-600 to-plum-800",
 ];
 
-function getEventEndDate(event: { date: Date; endTime: string; timezone?: string }): Date {
-  return eventInstant(event.date, event.endTime, event.timezone);
+function getEventEndDate(event: { date: Date; endDate?: Date | null; endTime: string; timezone?: string }): Date {
+  return eventInstant(event.endDate ?? event.date, event.endTime, event.timezone);
 }
 
 function isEventCurrentlyPublic(event: {
   status: string;
   date: Date;
   endTime: string;
+  endDate?: Date | null;
   timezone?: string;
 }): boolean {
   if (event.status !== "live") {
@@ -84,6 +85,7 @@ function mapEvent(event: EventWithRelations): EventItem {
     state: event.state,
     venue: event.venue,
     date: event.date.toISOString().slice(0, 10),
+    endDate: event.endDate?.toISOString().slice(0, 10),
     startTime: event.startTime,
     endTime: event.endTime,
     timezone: event.timezone,
@@ -368,6 +370,7 @@ export async function getAdminEvents(): Promise<
   organiserName: event.organiser.name,
   status: event.status,
   date: event.date.toISOString().slice(0, 10),
+  endDate: event.endDate?.toISOString().slice(0, 10),
   startTime: event.startTime,
   endTime: event.endTime,
   ticketsSold: event.attendees.length,
@@ -413,6 +416,7 @@ export async function getEventsByOrganiserId(
 
     // Needed by the organizer dashboard to calculate ENDED
     date: event.date.toISOString().slice(0, 10),
+    endDate: event.endDate?.toISOString().slice(0, 10),
     startTime: event.startTime,
     endTime: event.endTime,
     timezone: event.timezone,
@@ -490,6 +494,7 @@ interface CreateEventInput {
   state: string;
   venue: string;
   date: string;
+  endDate?: string;
   startTime: string;
   endTime: string;
   timezone?: string;
@@ -525,6 +530,7 @@ export async function createEvent(
         state: input.state,
         venue: input.venue,
         date: new Date(input.date),
+        endDate: new Date(input.endDate ?? input.date),
         startTime: input.startTime,
         endTime: input.endTime,
         timezone: input.timezone ?? "Africa/Lagos",
@@ -739,6 +745,7 @@ export interface UpdateEventInput {
   state: string;
   venue: string;
   date: string;
+  endDate?: string;
   startTime: string;
   endTime?: string;
   timezone?: string;
@@ -887,6 +894,7 @@ export async function updateEvent(
         state: input.state,
         venue: input.venue,
         date: new Date(input.date),
+        endDate: new Date(input.endDate ?? input.date),
         startTime: input.startTime,
         endTime: input.endTime ?? existing.endTime,
         timezone: input.timezone ?? existing.timezone,
@@ -1016,7 +1024,7 @@ export async function updateEvent(
       }
     }
 
-    if (input.date !== existing.date.toISOString().slice(0, 10) || input.startTime !== existing.startTime || (input.endTime ?? existing.endTime) !== existing.endTime || (input.timezone ?? existing.timezone) !== existing.timezone) {
+    if ((input.endDate ?? input.date) !== (existing.endDate ?? existing.date).toISOString().slice(0, 10) || input.date !== existing.date.toISOString().slice(0, 10) || input.startTime !== existing.startTime || (input.endTime ?? existing.endTime) !== existing.endTime || (input.timezone ?? existing.timezone) !== existing.timezone) {
       await rescheduleEventEmails(tx, eventId);
     }
 

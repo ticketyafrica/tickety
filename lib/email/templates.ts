@@ -50,10 +50,10 @@ export type EmailOrder = {
 };
 
 function eventRows(event: EmailEvent): [string, string][] {
-  const format = (time: string) => new Intl.DateTimeFormat("en-GB", {
+  const format = (time: string, date: Date | string = event.date) => new Intl.DateTimeFormat("en-GB", {
     timeZone: event.timezone, dateStyle: "full", timeStyle: "short",
-  }).format(eventInstant(event.date, time, event.timezone));
-  return [["Event", event.title], ["Starts", `${format(event.startTime)} (${event.timezone})`], ["Ends", `${format(event.endTime)} (${event.timezone})`], ["Venue", `${event.venue}, ${event.state}`], ...(event.organiser ? [["Organiser", event.organiser.name] as [string, string]] : [])];
+  }).format(eventInstant(date, time, event.timezone));
+  return [["Event", event.title], ["Starts", `${format(event.startTime)} (${event.timezone})`], ["Ends", `${format(event.endTime, event.endDate ?? event.date)} (${event.timezone})`], ["Venue", `${event.venue}, ${event.state}`], ...(event.organiser ? [["Organiser", event.organiser.name] as [string, string]] : [])];
 }
 
 export async function bookingEmail(order: EmailOrder): Promise<EmailMessage> {

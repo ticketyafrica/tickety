@@ -3,7 +3,7 @@ import { eventMetadata, eventStructuredData, serializeJsonLd } from "@/lib/seo";
 import { formatMoney } from "@/lib/currency";
 import { notFound } from "next/navigation";
 import { getEventBySlug } from "@/lib/data";
-import { formatEventDate } from "@/lib/utils";
+import { formatEventDateRange } from "@/lib/utils";
 
 import Badge from "@/components/ui/Badge";
 import TicketTypeCard from "@/components/events/TicketTypeCard";
@@ -173,10 +173,7 @@ export default async function EventPage({
     <div className="mt-7 space-y-3.5">
       <EventMeta
         icon={CalendarDays}
-        label={formatEventDate(
-          event.date,
-          event.startTime
-        )}
+        label={formatEventDateRange(event)}
       />
 
       <EventMeta
@@ -247,10 +244,7 @@ export default async function EventPage({
                 <DetailRow
                   icon={CalendarDays}
                   label="Date & time"
-                  value={formatEventDate(
-                    event.date,
-                    event.startTime
-                  )}
+                  value={formatEventDateRange(event)}
                 />
 
                 <DetailRow

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import PayoutPinInput from "./PayoutPinInput";
 import { FormEvent, useEffect, useState } from "react";
 import {
   CheckCircle2,
@@ -296,8 +297,9 @@ export default function PayoutSetupForm({
 
       setPin("");
       setFormState("idle");
-      if (onSaved) onSaved();
-      else { setSuccess(true); router.refresh(); }
+      onSaved?.();
+      router.replace("/organiser/events/new");
+      router.refresh();
     } catch (error) {
       setError(
         error instanceof Error
@@ -570,8 +572,7 @@ export default function PayoutSetupForm({
         )}
 
         <div>
-          <label htmlFor="payoutPin" className="mb-2 block text-[10px] font-bold uppercase tracking-[0.14em] text-black/40">Your payout PIN</label>
-          <input id="payoutPin" type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} minLength={6} pattern="[0-9]{6}" required disabled={isSaving || isVerifying} placeholder="6-digit Tickety PIN" className="h-12 w-full rounded-[13px] border border-black/10 px-4 text-sm tracking-[0.15em] outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100" />
+          <PayoutPinInput id="payoutPin" label="Your payout PIN" length={6} value={pin} onChange={setPin} disabled={isSaving || isVerifying} />
           <p className="mt-2 text-[10px] leading-5 text-black/45">Enter the payout PIN you set on Tickety to authorise this {editing ? "change" : "connection"}. <a href="mailto:experience@tickety.africa?subject=Forgotten%20payout%20PIN" className="font-semibold text-violet-700 underline underline-offset-2">Forgot your PIN?</a></p>
         </div>
 

@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { KeyRound, Loader2, ShieldCheck } from "lucide-react";
+import PayoutPinInput from "./PayoutPinInput";
 
 export default function PayoutPinSetup({ existingAccount = false }: { existingAccount?: boolean }) {
   const router = useRouter();
@@ -35,8 +36,8 @@ export default function PayoutPinSetup({ existingAccount = false }: { existingAc
       <div className="mt-7 space-y-5">
         <label className="block text-xs font-semibold">Current login password<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" maxLength={200} disabled={saving || success} className={inputClass} /></label>
         <div className="grid gap-5 sm:grid-cols-2">
-          <label className="block text-xs font-semibold">New payout PIN<input type="password" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))} required pattern="[0-9]{6}" minLength={6} maxLength={6} autoComplete="off" disabled={saving || success} className={`${inputClass} tracking-[0.3em]`} /></label>
-          <label className="block text-xs font-semibold">Confirm payout PIN<input type="password" inputMode="numeric" value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 6))} required pattern="[0-9]{6}" minLength={6} maxLength={6} autoComplete="off" disabled={saving || success} className={`${inputClass} tracking-[0.3em]`} /></label>
+          <PayoutPinInput id="new-payout-pin" label="New payout PIN" length={6} value={pin} onChange={setPin} disabled={saving || success} />
+          <PayoutPinInput id="confirm-payout-pin" label="Confirm payout PIN" length={6} value={confirmPin} onChange={setConfirmPin} disabled={saving || success} />
         </div>
       </div>
       {error && <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4 text-xs leading-6 text-red-700">{error}</p>}

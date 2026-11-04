@@ -51,11 +51,11 @@ export function eventInstant(date: Date | string, time: string, timezone = DEFAU
   throw new Error("This event time does not exist in its timezone");
 }
 
-export type SchedulableEvent = { date: Date | string; startTime: string; endTime: string; timezone: string };
+export type SchedulableEvent = { date: Date | string; endDate?: Date | string | null; startTime: string; endTime: string; timezone: string };
 
 export function reminderSchedule(event: SchedulableEvent, bookedAt: Date) {
   const start = eventInstant(event.date, event.startTime, event.timezone).getTime();
-  const end = eventInstant(event.date, event.endTime, event.timezone).getTime();
+  const end = eventInstant(event.endDate ?? event.date, event.endTime, event.timezone).getTime();
   return [
     ...REMINDERS.map((reminder, index) => ({
       kind: reminder.kind,

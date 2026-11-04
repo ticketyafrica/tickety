@@ -32,13 +32,14 @@ type CheckoutBody = {
 
 const ORDER_EXPIRY_MINUTES = 15;
 
-function getEventEndDate(event: { date: Date; endTime: string; timezone?: string }): Date {
-  return eventInstant(event.date, event.endTime, event.timezone);
+function getEventEndDate(event: { date: Date; endDate?: Date | null; endTime: string; timezone?: string }): Date {
+  return eventInstant(event.endDate ?? event.date, event.endTime, event.timezone);
 }
 
 function hasEventEnded(event: {
   date: Date;
   endTime: string;
+  endDate?: Date | null;
   timezone?: string;
 }): boolean {
   return getEventEndDate(event) <= new Date();

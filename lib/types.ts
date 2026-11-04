@@ -35,6 +35,7 @@ export interface EventItem {
 
   // ISO date, e.g. "2026-09-12"
   date: string;
+  endDate?: string;
 
   // 24-hour time, e.g. "16:00"
   startTime: string;
@@ -116,6 +117,7 @@ export interface AdminEventSummary {
     | "disabled"
     | "archived";
   date: string;
+  endDate?: string;
   startTime: string;
   endTime: string;
   timezone?: string;

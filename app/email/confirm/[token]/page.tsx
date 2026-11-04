@@ -16,7 +16,7 @@ export default async function ConfirmEventEmails({ params, searchParams }: { par
     "use server";
     await prisma.$transaction(async (tx) => {
       const current = await tx.eventEmailPreference.findUnique({ where: { verificationToken: params.token }, include: { event: true } });
-      if (!current || !current.verificationExpiresAt || current.verificationExpiresAt <= new Date() || current.event.status !== 'live' || eventInstant(current.event.date, current.event.endTime, current.event.timezone) <= new Date()) return;
+      if (!current || !current.verificationExpiresAt || current.verificationExpiresAt <= new Date() || current.event.status !== 'live' || eventInstant(current.event.endDate ?? current.event.date, current.event.endTime, current.event.timezone) <= new Date()) return;
       await tx.eventEmailPreference.update({ where: { id: current.id }, data: { verifiedAt: new Date(), unsubscribedAt: null } });
       await enqueueEventReminders(tx, current.id);
     });

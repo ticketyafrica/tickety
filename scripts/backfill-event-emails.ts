@@ -13,11 +13,11 @@ async function main() {
   while (true) {
     const attendees = await prisma.attendee.findMany({ where: {
       paymentStatus: "paid", ticketStatus: { in: ["active", "used"] },
-      event: { status: "live", date: { gte: new Date(Date.now() - 2 * 24 * 60 * 60_000) } },
+      event: { status: "live", OR: [{ endDate: { gte: new Date(Date.now() - 2 * 24 * 60 * 60_000) } }, { endDate: null, date: { gte: new Date(Date.now() - 2 * 24 * 60 * 60_000) } }] },
     }, include: { event: true }, take: 100, orderBy: { id: "asc" }, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
     if (!attendees.length) break;
     for (const attendee of attendees) {
-      if (eventInstant(attendee.event.date, attendee.event.endTime, attendee.event.timezone) <= new Date()) continue;
+      if (eventInstant(attendee.event.endDate ?? attendee.event.date, attendee.event.endTime, attendee.event.timezone) <= new Date()) continue;
       const email = attendee.email.trim().toLowerCase();
       const key = `${attendee.eventId}/${email}`;
       if (seen.has(key)) continue;

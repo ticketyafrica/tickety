@@ -69,6 +69,7 @@ export async function PUT(
     select: {
       id: true,
       endTime: true,
+      endDate: true,
       timezone: true,
       currency: true,
     },
@@ -104,13 +105,14 @@ export async function PUT(
     }
 
     const timezone = typeof body.timezone === "string" ? body.timezone : event.timezone;
+    const endDate = typeof body.endDate === "string" ? body.endDate : event.endDate?.toISOString().slice(0, 10) ?? String(body.date);
     const endTime = typeof body.endTime === "string" ? body.endTime : event.endTime;
     try {
       const start = eventInstant(String(body.date), String(body.startTime), timezone);
-      const end = eventInstant(String(body.date), endTime, timezone);
+      const end = eventInstant(endDate, endTime, timezone);
       if (end <= start) throw new Error("End time must be after start time");
     } catch {
-      return NextResponse.json({ error: "Provide valid start and end times and an event timezone. End time must be after start time." }, { status: 400 });
+      return NextResponse.json({ error: "Check your end date or end time. The event must end after it starts. Also check that your dates, times and timezone are valid." }, { status: 400 });
     }
 
     if (body.currency !== undefined && body.currency !== event.currency) {
@@ -194,6 +196,7 @@ export async function PUT(
         date: String(body.date),
         startTime: String(body.startTime),
         endTime,
+        endDate,
         timezone,
         category: String(body.category).trim(),
         coverImageUrl: body.coverImageUrl

@@ -52,6 +52,7 @@ model Event {
   state         String
   venue         String
   date          DateTime
+  endDate       DateTime?
   startTime     String
   endTime       String
   timezone      String      @default("Africa/Lagos")

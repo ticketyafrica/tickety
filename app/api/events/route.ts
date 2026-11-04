@@ -149,15 +149,15 @@ export async function POST(request: NextRequest) {
   let eventEnd: Date;
   try {
     eventStart = eventInstant(String(body.date), String(body.startTime), timezone);
-    eventEnd = eventInstant(String(body.date), String(body.endTime), timezone);
+    eventEnd = eventInstant(String(body.endDate ?? body.date), String(body.endTime), timezone);
   } catch {
-    return NextResponse.json({ error: "Please provide a valid event date, start time, end time and timezone." }, { status: 400 });
+    return NextResponse.json({ error: "Please provide valid start and end dates, times and an event timezone." }, { status: 400 });
   }
 
   if (eventEnd <= eventStart) {
     return NextResponse.json(
       {
-        error: "Event end time must be after the start time.",
+        error: "Check your end date or end time. The event must end after it starts.",
       },
       { status: 400 }
     );
@@ -322,6 +322,7 @@ export async function POST(request: NextRequest) {
       state: String(body.state).trim(),
       venue: String(body.venue).trim(),
       date: String(body.date),
+      endDate: String(body.endDate ?? body.date),
       startTime: String(body.startTime),
       endTime: String(body.endTime),
       timezone,

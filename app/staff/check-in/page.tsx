@@ -13,6 +13,7 @@ import {
 
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getEventEnd, getEventStart } from "@/lib/event-time";
 import StaffLogoutButton from "@/components/staff/StaffLogoutButton";
 
 export const dynamic = "force-dynamic";
@@ -41,6 +42,8 @@ export default async function StaffCheckInPage() {
           date: true,
           startTime: true,
           endTime: true,
+          endDate: true,
+          timezone: true,
           status: true,
         },
       },
@@ -76,17 +79,13 @@ export default async function StaffCheckInPage() {
         return false;
       }
 
-      const eventDate = new Date(event.date);
-
-      return eventDate >= startOfToday;
+      return getEventEnd(event) > now;
     });
 
   const todayEvents = events.filter((event) => {
-    const eventDate = new Date(event.date);
-
     return (
-      eventDate >= startOfToday &&
-      eventDate < endOfToday
+      getEventStart(event) < endOfToday &&
+      getEventEnd(event) > startOfToday
     );
   });
 

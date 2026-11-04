@@ -23,6 +23,8 @@ import {
 import Button from "@/components/ui/Button";
 import { EVENT_CATEGORIES } from "@/lib/utils";
 import CoverImageUpload from "@/components/organiser/CoverImageUpload";
+import { eventDuration } from "@/lib/event-duration";
+import EventDurationNote from "./EventDurationNote";
 import EventTimezoneSelect from "@/components/organiser/EventTimezoneSelect";
 import EventCreatedDialog from "@/components/organiser/EventCreatedDialog";
 
@@ -44,6 +46,7 @@ export default function EventForm() {
   const [country, setCountry] = useState("Nigeria");
   const [state, setState] = useState("");
   const [date, setDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [timezone, setTimezone] = useState("Africa/Lagos");
@@ -219,6 +222,13 @@ export default function EventForm() {
     e: React.FormEvent
   ) {
     e.preventDefault();
+    try {
+      eventDuration({ date, endDate: endDate || date, startTime, endTime, timezone });
+    } catch (error) {
+      setStatus("error");
+      setErrorMessage(error instanceof Error ? error.message : "Choose valid event dates and times.");
+      return;
+    }
 
     setErrorMessage("");
     setShowPayoutNotice(false);
@@ -256,6 +266,7 @@ export default function EventForm() {
           venue,
           state: state ? `${state}, ${country}` : country,
           date,
+          endDate: endDate || date,
           startTime,
           endTime,
           timezone,
@@ -513,7 +524,7 @@ export default function EventForm() {
             </Field>
 
             <Field
-              label="Date"
+              label="Start date"
               required
               icon={
                 <CalendarDays size={13} />
@@ -523,11 +534,16 @@ export default function EventForm() {
                 required
                 type="date"
                 value={date}
-                onChange={(e) =>
-                  setDate(e.target.value)
-                }
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  if (!endDate || endDate < e.target.value || endDate === date) setEndDate(e.target.value);
+                }}
                 className={inputClass}
               />
+            </Field>
+
+            <Field label="End date" required icon={<CalendarDays size={13} />}>
+              <input required type="date" value={endDate} min={date || undefined} onChange={(e) => setEndDate(e.target.value)} className={inputClass} />
             </Field>
 
             <Field
@@ -564,6 +580,7 @@ export default function EventForm() {
 </Field>
 
             <EventTimezoneSelect value={timezone} onChange={setTimezone} />
+            <EventDurationNote date={date} endDate={endDate} startTime={startTime} endTime={endTime} timezone={timezone} />
 
             <Field
               label="Category"
