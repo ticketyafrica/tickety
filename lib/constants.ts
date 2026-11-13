@@ -1,8 +1,8 @@
 import { Currency, toMinorUnits } from "./currency";
 export const LISTING_FEE_NAIRA = 50000;
 export const LISTING_FEE_KOBO = LISTING_FEE_NAIRA * 100;
-export const TICKET_SERVICE_FEE_PERCENT = 5;
-export const TICKET_SERVICE_FEE_CAP_NAIRA = 2500;
+export const TICKET_SERVICE_FEE_PERCENT = 2.5;
+export const TICKET_SERVICE_FEE_CAP_NAIRA = 1500;
 export const TICKET_SERVICE_FEE_CAP_USD = 5;
 
 // Charged once per order: whole naira for NGN, cents for USD.

@@ -3,8 +3,8 @@
 Events have one fixed ticket currency: NGN (default) or USD. Selecting USD sets
 dollar prices; it does not convert existing naira prices. Existing events and
 orders stay NGN. Monetary database fields use Decimal(14,2); Paystack receives
-integer minor units (kobo/cents). The service fee is 5% once per order, capped at
-₦2,500 for NGN or $5 for USD. Free bookings carry no service fee. USD fees and
+integer minor units (kobo/cents). The service fee is 2.5% once per order, capped at
+₦1,500 for NGN or $5 for USD. Free bookings carry no service fee. USD fees and
 commissions round to cents; existing NGN fees and commissions round to naira.
 
 ## Activation
@@ -37,8 +37,8 @@ commissions round to cents; existing NGN fees and commissions round to naira.
 
 ## Behaviour
 
-A $20 ticket costs $21 including a $1 service fee. The organiser split is $18;
-Tickety keeps $3 before Paystack processing costs. Paystack requires a USD
+A $20 ticket costs $20.50 including a $0.50 service fee. The organiser split is $18;
+Tickety keeps $2.50 before Paystack processing costs. Paystack requires a USD
 payment total of at least $2; smaller orders must add more tickets. Checkout
 checks the USD subaccount currency and status before reserving inventory.
 

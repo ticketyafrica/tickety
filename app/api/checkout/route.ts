@@ -484,7 +484,7 @@ export async function POST(request: NextRequest) {
    * PAYMENT BREAKDOWN
    *
    * Customer pays:
-   *   ticket amount + 5% service fee (capped at ₦2,500 / $5)
+   *   ticket amount + 2.5% service fee (capped at ₦1,500 / $5)
    *
    * Organiser receives:
    *   90% of ticket amount
@@ -962,7 +962,7 @@ export async function POST(request: NextRequest) {
             ticketAmount,
 
             /*
-             * 5% service fee, capped at ₦2,500 / $5, paid by the customer.
+             * 2.5% service fee, capped at ₦1,500 / $5, paid by the customer.
              */
             serviceFee,
 
@@ -1045,15 +1045,15 @@ export async function POST(request: NextRequest) {
          * Example:
          *
          * Ticket amount:       ₦50,000
-         * Service fee:          ₦2,500
-         * Customer pays:       ₦52,500
+         * Service fee:          ₦1,250
+         * Customer pays:       ₦51,250
          *
          * Organiser share:     ₦45,000
-         * Tickety remainder:    ₦7,500
+         * Tickety remainder:    ₦6,250
          *
          * The remainder contains:
          * - ₦5,000 commission
-         * - ₦2,500 service fee
+         * - ₦1,250 service fee
          *
          * bearer_type "account" means the main Tickety account
          * bears Paystack's transaction processing fee.

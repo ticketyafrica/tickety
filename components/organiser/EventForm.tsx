@@ -976,7 +976,7 @@ export default function EventForm() {
                 </select>
                 <p className="mt-2 text-xs leading-5 text-black/50">
                   Ticket prices and payouts use this currency. It cannot be changed after publishing.
-                  {currency === "USD" && " USD sales require a connected USD payout account. Service fee: 5%, capped at $5 per order."}
+                  {currency === "USD" && " USD sales require a connected USD payout account. Service fee: 2.5%, capped at $5 per order."}
                 </p>
               </div>
               {ticketTypes.map(

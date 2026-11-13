@@ -8,7 +8,7 @@ import { initializeTransaction } from "../lib/paystack";
 import { bookingEmail, bookingAlert } from "../lib/email/templates";
 
 test("NGN fees retain whole-naira rounding, cap and free bookings", () => {
-  for (const [amount, fee] of [[0, 0], [500, 25], [510, 26], [10000, 500], [20000, 1000], [25000, 1250], [50000, 2500], [100000, 2500]]) {
+  for (const [amount, fee] of [[0, 0], [500, 13], [510, 13], [10000, 250], [20000, 500], [25000, 625], [50000, 1250], [60000, 1500], [100000, 1500]]) {
     assert.equal(calculateTicketServiceFee(amount), fee);
   }
   assert.equal(calculateTicketCommission(500), 50);
@@ -16,12 +16,12 @@ test("NGN fees retain whole-naira rounding, cap and free bookings", () => {
 
 test("USD fees and splits round from integer cents and cap per order", () => {
   assert.equal(calculateTicketServiceFee(0, "USD"), 0);
-  assert.equal(calculateTicketServiceFee(20, "USD"), 1);
-  assert.equal(calculateTicketServiceFee(20.10, "USD"), 1.01);
-  assert.equal(calculateTicketServiceFee(100, "USD"), 5);
+  assert.equal(calculateTicketServiceFee(20, "USD"), 0.50);
+  assert.equal(calculateTicketServiceFee(20.10, "USD"), 0.50);
+  assert.equal(calculateTicketServiceFee(100, "USD"), 2.50);
   assert.equal(calculateTicketServiceFee(250, "USD"), 5);
   assert.equal(calculateTicketCommission(20.10, "USD"), 2.01);
-  assert.equal(toMinorUnits(20.10 + calculateTicketServiceFee(20.10, "USD")), 2111);
+  assert.equal(toMinorUnits(20.10 + calculateTicketServiceFee(20.10, "USD")), 2060);
   assert.equal(toMinorUnits(20.10 - calculateTicketCommission(20.10, "USD")), 1809);
 });
 
